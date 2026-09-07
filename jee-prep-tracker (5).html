@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ascent — JEE / CET Prep Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0F1320;
+    --bg-soft: #12172A;
+    --panel: #171C2C;
+    --panel-border: #262D42;
+    --track-line: #262E48;
+    --text: #EDEEF3;
+    --text-muted: #8991A8;
+    --amber: #E8A33D;   /* physics */
+    --teal: #45C4B0;    /* chemistry */
+    --violet: #9B8CF2;  /* maths */
+    --gold: #F2C14E;    /* points / progress accent */
+    --good: #6FCF97;
+    --danger: #E1637A;
+    --fire: #F2994A;
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+
+  body{
+    background: radial-gradient(circle at 15% 0%, #161B30 0%, var(--bg) 45%);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 28px 20px 60px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  h1, h2, h3, .num { font-family: 'Space Grotesk', 'Inter', sans-serif; }
+  a { color: inherit; }
+  .app{ max-width: 1100px; margin: 0 auto; }
+
+  /* ---------- header ---------- */
+  header.top{
+    display:flex; flex-wrap: wrap; gap: 18px;
+    align-items: flex-end; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .brand h1{ font-size: 28px; font-weight: 700; margin: 0 0 4px; letter-spacing: 0.2px; }
+  .brand p{ margin:0; color: var(--text-muted); font-size: 14px; }
+
+  .countdowns{ display:flex; gap: 10px; flex-wrap: wrap; }
+  .chip{
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: var(--radius-sm); padding: 8px 14px; min-width: 100px;
+    text-align: center;
+  }
+  .chip .n{ font-size: 20px; font-weight: 700; color: var(--gold); line-height: 1.1; }
+  .chip .l{ font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+  .chip.streak .n{ color: var(--fire); }
+
+  /* ---------- stats strip ---------- */
+  .stats-strip{
+    display:flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .stats-strip .chip{ min-width: auto; padding: 8px 16px; }
+
+  /* ---------- track panel ---------- */
+  .track-panel{
+    background: linear-gradient(180deg, var(--panel) 0%, var(--bg-soft) 100%);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-md);
+    padding: 22px 22px 16px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  .track-head{
+    display:flex; justify-content: space-between; align-items: baseline;
+    flex-wrap: wrap; gap: 10px; margin-bottom: 18px;
+  }
+  .track-head .points{ display:flex; align-items:baseline; gap: 8px; }
+  .track-head .points .num{ font-size: 30px; font-weight: 700; color: var(--gold); }
+  .track-head .points .of{ color: var(--text-muted); font-size: 14px; }
+  .goal-edit{ display:flex; align-items:center; gap: 6px; font-size: 12.5px; color: var(--text-muted); }
+  .goal-edit input{
+    width: 88px; background: var(--bg); border: 1px solid var(--panel-border);
+    color: var(--text); border-radius: 6px; padding: 5px 7px; font-size: 12.5px;
+    font-family: inherit;
+  }
+
+  .track-wrap{ position: relative; padding: 10px 6px 30px; }
+  .track-line{ position: relative; height: 6px; border-radius: 6px; background: var(--track-line); overflow: visible; }
+  .track-fill{
+    position:absolute; left:0; top:0; bottom:0; border-radius:6px;
+    background: linear-gradient(90deg, var(--amber), var(--gold));
+    width: 0%; transition: width 700ms cubic-bezier(.4,1.4,.4,1);
+  }
+  .runner{
+    position:absolute; top: 50%; transform: translate(-50%,-58%);
+    font-size: 26px; left: 0%; transition: left 700ms cubic-bezier(.4,1.4,.4,1);
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+  }
+  .flagpost{ position:absolute; right: -4px; top: 50%; transform: translateY(-72%); font-size: 26px; }
+  .milestones{ position:absolute; left:0; right:0; top: 50%; transform: translateY(-50%); }
+  .milestone-tick{
+    position:absolute; width:2px; height: 14px; background: var(--panel-border);
+    top: 50%; transform: translate(-50%,-50%);
+  }
+  .track-foot{ display:flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+
+  /* ---------- tabs ---------- */
+  .tabbar{ display:flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tabbtn{
+    background: var(--panel); border: 1px solid var(--panel-border); color: var(--text-muted);
+    padding: 9px 16px; border-radius: 9px; font-size: 13.5px; font-weight: 500;
+    cursor: pointer; font-family: inherit;
+  }
+  .tabbtn.active{ background: var(--gold); color: #1A1408; border-color: var(--gold); font-weight: 600; }
+  .tabpanel{ display:none; }
+  .tabpanel.active{ display:block; }
+
+  /* ---------- generic layout ---------- */
+  .grid2{ display:grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items:start; }
+  .grid3{ display:grid; grid-template-columns: 1.15fr 1fr 0.95fr; gap: 18px; align-items:start; }
+  @media (max-width: 880px){ .grid2, .grid3{ grid-template-columns: 1fr; } }
+
+  .panel{
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: var(--radius-md); padding: 18px;
+  }
+  .panel h2{ font-size: 15.5px; margin: 0 0 14px; font-weight: 600; letter-spacing: 0.2px; }
+  .panel h2 .sub{ color: var(--text-muted); font-weight: 400; font-size: 12.5px; }
+
+  /* ---------- forms ---------- */
+  label{ display:block; font-size: 12.5px; color: var(--text-muted); margin-bottom: 5px; }
+  select, input[type=number], input[type=text], input[type=date]{
+    width: 100%; background: var(--bg); border: 1px solid var(--panel-border);
+    color: var(--text); border-radius: 8px; padding: 9px 10px; font-size: 14px;
+    font-family: inherit; margin-bottom: 12px;
+  }
+  select:focus, input:focus, button:focus-visible{ outline: 2px solid var(--gold); outline-offset: 1px; }
+  .row2{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .field-group{ display:none; }
+  .field-group.active{ display:block; }
+
+  button.primary{
+    width:100%; background: var(--gold); color: #1A1408; border:none;
+    padding: 10px 14px; border-radius: 8px; font-weight: 600; font-size: 14px;
+    cursor:pointer; font-family: inherit;
+  }
+  button.primary:hover{ filter: brightness(1.08); }
+  .points-preview{ font-size: 12.5px; color: var(--text-muted); margin: -4px 0 12px; }
+  .points-preview b{ color: var(--gold); }
+  .legend{ margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--panel-border); font-size: 11.5px; color: var(--text-muted); line-height: 1.8; }
+
+  /* ---------- todo list ---------- */
+  ul.plain{ list-style: none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .task-item{
+    display:flex; align-items:center; gap: 10px;
+    background: var(--bg-soft); border: 1px solid var(--panel-border);
+    border-radius: 9px; padding: 9px 10px;
+  }
+  .task-item.done{ opacity: 0.55; }
+  .task-item.done .task-label{ text-decoration: line-through; }
+  .task-check{
+    width: 20px; height:20px; border-radius:6px; border: 2px solid var(--panel-border);
+    background: transparent; cursor:pointer; flex: none; display:flex; align-items:center; justify-content:center;
+    color: var(--good); font-size: 13px;
+  }
+  .task-check.checked{ background: var(--good); border-color: var(--good); color: #0F1320; }
+  .task-label{ flex:1; font-size: 13.5px; }
+  .task-pts{ font-size: 12.5px; color: var(--gold); font-weight: 600; white-space:nowrap; }
+  .task-del{ background:none; border:none; color: var(--text-muted); cursor:pointer; font-size: 15px; line-height:1; padding: 2px 4px; }
+  .task-del:hover{ color: var(--danger); }
+  .empty-note{ color: var(--text-muted); font-size: 13px; padding: 10px 2px; }
+
+  /* ---------- stats panel bars ---------- */
+  .stat-row{ margin-bottom: 14px; }
+  .stat-row .label{ display:flex; justify-content:space-between; font-size: 12.5px; color: var(--text-muted); margin-bottom: 5px; }
+  .bar{ height: 8px; border-radius: 6px; background: var(--bg-soft); overflow:hidden; border: 1px solid var(--panel-border); }
+  .bar > i{ display:block; height:100%; border-radius: 6px; }
+  .bar.physics > i{ background: var(--amber); }
+  .bar.chem > i{ background: var(--teal); }
+  .bar.maths > i{ background: var(--violet); }
+  .bar.mock > i{ background: var(--gold); }
+
+  .today-points{ display:flex; align-items:baseline; gap:6px; margin-bottom: 16px; }
+  .today-points .num{ font-size: 26px; font-weight:700; color: var(--good); }
+  .today-points .lbl{ color: var(--text-muted); font-size: 12.5px; }
+
+  /* ---------- mock cards ---------- */
+  .mock-card{
+    background: var(--bg-soft); border: 1px solid var(--panel-border);
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
+  }
+  .mock-card .mock-head{ display:flex; justify-content:space-between; align-items:flex-start; gap: 10px; margin-bottom: 8px; }
+  .mock-card .mock-title{ font-size: 14px; font-weight: 600; }
+  .mock-card .mock-meta{ font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .mock-card .mock-score{ font-size: 13px; color: var(--gold); font-weight:600; white-space:nowrap; }
+  .analysis-list{ list-style:none; margin: 8px 0 0; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .analysis-item{ display:flex; align-items:center; gap: 8px; font-size: 12.5px; color: var(--text-muted); cursor:pointer; }
+  .analysis-item.checked{ color: var(--good); }
+  .analysis-item .box{
+    width:16px; height:16px; border-radius:4px; border: 2px solid var(--panel-border);
+    display:flex; align-items:center; justify-content:center; font-size: 11px; flex:none;
+  }
+  .analysis-item.checked .box{ background: var(--good); border-color: var(--good); color:#0F1320; }
+  .analysis-award{ margin-top: 8px; font-size: 12px; color: var(--text-muted); }
+  .analysis-award.earned{ color: var(--good); font-weight:600; }
+
+  /* ---------- achievements ---------- */
+  .ach-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 12px; }
+  .ach-card{
+    background: var(--bg-soft); border: 1px solid var(--panel-border); border-radius: 10px;
+    padding: 14px; text-align:center; opacity: 0.4;
+  }
+  .ach-card.unlocked{ opacity: 1; border-color: var(--gold); }
+  .ach-card .icon{ font-size: 26px; margin-bottom: 6px; }
+  .ach-card .name{ font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .ach-card .desc{ font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+  /* ---------- weekly report ---------- */
+  .week-compare{ display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .week-col h3{ font-size: 13px; color: var(--text-muted); margin: 0 0 10px; font-weight: 600; }
+  .week-stat{ display:flex; justify-content:space-between; font-size: 13.5px; padding: 6px 0; border-bottom: 1px dashed var(--panel-border); }
+  .week-stat .v{ font-weight:600; }
+  .delta{ font-size: 11.5px; margin-left: 6px; }
+  .delta.up{ color: var(--good); }
+  .delta.down{ color: var(--danger); }
+
+  /* ---------- life stats ---------- */
+  .life-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; }
+  .life-card{ background: var(--bg-soft); border: 1px solid var(--panel-border); border-radius: 10px; padding: 14px; }
+  .life-card .num{ font-size: 22px; font-weight: 700; color: var(--gold); }
+  .life-card .lbl{ font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+  /* ---------- modal ---------- */
+  .modal-overlay{ position: fixed; inset:0; background: rgba(6,8,16,0.72); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 20px; }
+  .modal-overlay.hidden{ display:none; }
+  .modal{ background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius-md); padding: 26px; max-width: 420px; width:100%; box-shadow: var(--shadow); }
+  .modal h3{ margin: 0 0 8px; font-size: 18px; }
+  .modal p{ color: var(--text-muted); font-size: 13.5px; line-height:1.6; margin: 0 0 14px; }
+  .modal button{ width:100%; }
+  .modal .week-compare{ margin-bottom: 16px; }
+
+  /* ---------- chapters ---------- */
+  .subjectbar{ display:flex; gap: 8px; margin-bottom: 16px; }
+  .subjbtn{
+    background: var(--bg-soft); border: 1px solid var(--panel-border); color: var(--text-muted);
+    padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor:pointer; font-family: inherit;
+  }
+  .subjbtn.active{ color: #0F1320; border-color: transparent; }
+  .subjbtn[data-subject="physics"].active{ background: var(--amber); }
+  .subjbtn[data-subject="chem"].active{ background: var(--teal); }
+  .subjbtn[data-subject="maths"].active{ background: var(--violet); }
+
+  .chapter-progress{ display:flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px; }
+  .chapter-progress b{ color: var(--text); }
+
+  .chapter-card{
+    display:flex; align-items:center; gap: 12px; flex-wrap: wrap;
+    background: var(--bg-soft); border: 1px solid var(--panel-border); border-left: 3px solid var(--panel-border);
+    border-radius: 9px; padding: 10px 12px; margin-bottom: 8px;
+  }
+  .chapter-card .rank{ font-size: 11px; color: var(--text-muted); width: 22px; flex: none; }
+  .chapter-card .cname{ flex: 1 1 180px; font-size: 13.5px; font-weight: 500; min-width: 140px; }
+  .status-pill{
+    border: 1px solid var(--panel-border); background: var(--bg); color: var(--text-muted);
+    border-radius: 7px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; font-family: inherit;
+    white-space: nowrap;
+  }
+  .status-pill[data-state="in_progress"]{ color: var(--amber); border-color: var(--amber); }
+  .status-pill[data-state="done"]{ color: var(--good); border-color: var(--good); }
+  .qsolved{ display:flex; align-items:center; gap: 6px; }
+  .qsolved .count{ font-size: 12.5px; color: var(--gold); font-weight: 600; min-width: 62px; text-align:right; }
+  .qsolved input{
+    width: 52px; margin: 0; padding: 5px 6px; font-size: 12.5px;
+    background: var(--bg); border: 1px solid var(--panel-border); color: var(--text); border-radius: 6px;
+  }
+  .qsolved button{
+    background: var(--panel-border); color: var(--text); border:none; border-radius: 6px;
+    padding: 5px 9px; font-size: 12px; cursor:pointer; font-family: inherit;
+  }
+  .qsolved button:hover{ background: var(--gold); color: #1A1408; }
+
+  /* ---------- motivation tab ---------- */
+  .motivation-controls{ display:flex; gap: 10px; flex-wrap: wrap; align-items:center; margin-bottom: 10px; }
+  .ctrlbtn{
+    background: var(--bg-soft); border: 1px solid var(--panel-border); color: var(--text);
+    padding: 9px 16px; border-radius: 8px; font-size: 13.5px; font-weight: 500; cursor:pointer; font-family: inherit;
+  }
+  .ctrlbtn:hover{ border-color: var(--gold); }
+  .ctrlbtn.active{ background: var(--fire); color: #1A1408; border-color: var(--fire); font-weight:600; }
+  .badday-status{ font-size: 12.5px; color: var(--text-muted); }
+  .hint-text{ font-size: 12px; color: var(--text-muted); margin: 8px 0 0; line-height: 1.6; }
+
+  .reaction-item{
+    display:flex; gap: 10px; align-items:flex-start; padding: 8px 0;
+    border-bottom: 1px dashed var(--panel-border); font-size: 13px;
+  }
+  .reaction-item:last-child{ border-bottom: none; }
+  .reaction-item .ravatar{ font-size: 20px; flex: none; }
+  .reaction-item .rname{ font-weight: 600; margin-right: 6px; }
+  .reaction-item .rtext{ color: var(--text-muted); }
+
+  .feed-card{
+    background: var(--bg-soft); border: 1px solid var(--panel-border); border-radius: 10px;
+    padding: 12px; margin-bottom: 10px;
+  }
+  .feed-card .fhead{ display:flex; align-items:center; gap: 8px; margin-bottom: 6px; }
+  .feed-card .favatar{ font-size: 22px; }
+  .feed-card .fname{ font-size: 13.5px; font-weight: 600; }
+  .feed-card .ftag{ font-size: 11px; color: var(--text-muted); }
+  .feed-card .ftime{ margin-left: auto; font-size: 11px; color: var(--text-muted); }
+  .feed-card .ftext{ font-size: 13px; line-height: 1.5; }
+  .mood-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; }
+  .mood-great{ background: var(--good); } .mood-good{ background: var(--teal); }
+  .mood-meh{ background: var(--gold); } .mood-bad{ background: var(--danger); }
+
+  .lb-row{
+    display:flex; align-items:center; gap: 10px; padding: 8px 6px; border-radius: 8px;
+    font-size: 13.5px; margin-bottom: 4px;
+  }
+  .lb-row.you{ background: rgba(242,193,78,0.12); border: 1px solid var(--gold); }
+  .lb-rank{ width: 26px; flex: none; font-weight: 600; color: var(--text-muted); }
+  .lb-name{ flex: 1; }
+  .lb-pts{ font-weight: 600; color: var(--gold); }
+
+  #stuckInput{
+    width:100%; background: var(--bg); border: 1px solid var(--panel-border); color: var(--text);
+    border-radius: 8px; padding: 10px; font-size: 14px; font-family: inherit; resize: vertical;
+  }
+  .stuck-quickpicks{ display:flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .stuck-quickpicks button{
+    background: var(--bg-soft); border: 1px solid var(--panel-border); color: var(--text-muted);
+    padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor:pointer; font-family: inherit;
+  }
+  .stuck-quickpicks button.active{ background: var(--gold); color: #1A1408; border-color: var(--gold); font-weight:600; }
+  .stuck-response{
+    margin-top: 14px; background: var(--bg-soft); border: 1px solid var(--panel-border);
+    border-radius: 10px; padding: 14px; font-size: 13.5px; line-height: 1.7; display:none;
+  }
+  .stuck-response.visible{ display:block; }
+  .stuck-response ul{ margin: 8px 0 0; padding-left: 20px; }
+
+  footer.foot{ text-align:center; color: var(--text-muted); font-size: 12px; margin-top: 28px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Ascent</h1>
+      <p>Syllabus → mocks → the exam hall. One day at a time.</p>
+    </div>
+    <div class="countdowns">
+      <div class="chip"><div class="n" id="cdSyllabus">--</div><div class="l">days to Oct&nbsp;1 target</div></div>
+      <div class="chip"><div class="n" id="cdCet">--</div><div class="l">days to CET</div></div>
+      <div class="chip"><div class="n" id="cdJee">--</div><div class="l">days to JEE</div></div>
+    </div>
+  </header>
+
+  <div class="stats-strip">
+    <div class="chip streak"><div class="n" id="streakDisplay">0 🔥</div><div class="l">day streak</div></div>
+    <div class="chip"><div class="n" id="lifeQuestions">0</div><div class="l">total questions solved</div></div>
+    <div class="chip"><div class="n" id="lifeHours">0h</div><div class="l">total hours spent</div></div>
+    <div class="chip"><div class="n" id="lifeMocks">0</div><div class="l">total mocks taken</div></div>
+    <div class="chip"><div class="n" id="longestStreakDisplay">0</div><div class="l">longest streak</div></div>
+  </div>
+
+  <section class="track-panel">
+    <div class="track-head">
+      <div class="points">
+        <span class="num" id="totalPointsDisplay">0</span>
+        <span class="of">/ <span id="goalDisplay">99000</span> pts to the flag</span>
+      </div>
+      <div class="goal-edit">
+        Goal
+        <input type="number" id="goalInput" min="1000" step="1000" value="99000">
+      </div>
+    </div>
+
+    <div class="track-wrap">
+      <div class="track-line" id="trackLine">
+        <div class="track-fill" id="trackFill"></div>
+        <div class="milestones" id="milestones"></div>
+        <div class="runner" id="runner" style="left:0%;">🏃</div>
+        <div class="flagpost">🚩</div>
+      </div>
+      <div class="track-foot">
+        <span id="milestoneCount">0 milestones passed</span>
+        <span id="pctToGoal">0% of the way there</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="tabbar">
+    <button class="tabbtn active" data-tab="today">Today</button>
+    <button class="tabbtn" data-tab="mocks">Mock Tests</button>
+    <button class="tabbtn" data-tab="study">Study Hours</button>
+    <button class="tabbtn" data-tab="weekly">Weekly Report</button>
+    <button class="tabbtn" data-tab="achievements">Achievements</button>
+    <button class="tabbtn" data-tab="chapters">Chapters</button>
+    <button class="tabbtn" data-tab="motivation">Motivation</button>
+  </div>
+
+  <!-- ===================== TODAY TAB ===================== -->
+  <section class="tabpanel active" id="tab-today">
+    <div class="grid3">
+      <div class="panel">
+        <h2>Add a task <span class="sub">— points on completion</span></h2>
+        <form id="taskForm">
+          <label for="taskType">Type</label>
+          <select id="taskType">
+            <option value="physics">Physics questions</option>
+            <option value="chem">Chemistry questions</option>
+            <option value="maths">Maths questions</option>
+            <option value="lecture">Lecture</option>
+            <option value="custom">Custom</option>
+          </select>
+
+          <div class="field-group active" data-for="physics chem maths">
+            <label for="qCount">Number of questions</label>
+            <input type="number" id="qCount" min="1" value="10">
+          </div>
+
+          <div class="field-group" data-for="lecture">
+            <label for="lecHours">Hours</label>
+            <input type="number" id="lecHours" min="0.5" step="0.5" value="1">
+          </div>
+
+          <div class="field-group" data-for="custom">
+            <div class="row2">
+              <div><label for="customLabel">Label</label><input type="text" id="customLabel" placeholder="e.g. Revision notes"></div>
+              <div><label for="customPts">Points</label><input type="number" id="customPts" min="1" value="10"></div>
+            </div>
+          </div>
+
+          <div class="points-preview">Worth <b id="ptsPreview">20</b> points when completed</div>
+          <button type="submit" class="primary">Add to today's list</button>
+        </form>
+
+        <div class="legend">
+          1 question = 2 pts &nbsp;·&nbsp; 1 hr lecture = 50 pts<br>
+          Mock tests &amp; analysis have their own tab →
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Today's list <span class="sub" id="todayDateLabel"></span></h2>
+        <ul class="plain" id="todoList"></ul>
+        <p class="empty-note" id="emptyNote">Nothing planned yet — add your first task for today.</p>
+      </div>
+
+      <div class="panel">
+        <h2>Today's progress</h2>
+        <div class="today-points"><span class="num" id="todayPoints">0</span><span class="lbl">points earned today</span></div>
+
+        <div class="stat-row"><div class="label"><span>Physics</span><span id="physCountLbl">0 / 33</span></div><div class="bar physics"><i id="physBar" style="width:0%"></i></div></div>
+        <div class="stat-row"><div class="label"><span>Chemistry</span><span id="chemCountLbl">0 / 33</span></div><div class="bar chem"><i id="chemBar" style="width:0%"></i></div></div>
+        <div class="stat-row"><div class="label"><span>Maths</span><span id="mathsCountLbl">0 / 33</span></div><div class="bar maths"><i id="mathsBar" style="width:0%"></i></div></div>
+        <div class="stat-row"><div class="label"><span>Mock tests this week</span><span id="mockCountLbl">0 / 4</span></div><div class="bar mock"><i id="mockBar" style="width:0%"></i></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== MOCK TESTS TAB ===================== -->
+  <section class="tabpanel" id="tab-mocks">
+    <div class="grid2">
+      <div class="panel">
+        <h2>Log a mock test <span class="sub">— +300 pts on save</span></h2>
+        <form id="mockForm">
+          <label for="mockDate">Date</label>
+          <input type="date" id="mockDate">
+          <label for="mockLabel">Chapter / paper name</label>
+          <input type="text" id="mockLabel" placeholder="e.g. Full Syllabus Test 4" required>
+          <div class="row2">
+            <div><label for="mockScored">Marks scored</label><input type="number" id="mockScored" min="0" value="0"></div>
+            <div><label for="mockTotal">Marks total</label><input type="number" id="mockTotal" min="1" value="300"></div>
+          </div>
+          <button type="submit" class="primary">Save mock test</button>
+        </form>
+        <div class="legend">
+          Analysis checklist (all 4 = +500 pts): re-solve the paper, identify mistake patterns, note weak chapters, revise related concepts.
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Your mock tests</h2>
+        <div id="mockList"></div>
+        <p class="empty-note" id="emptyMockNote">No mock tests logged yet.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== STUDY HOURS TAB ===================== -->
+  <section class="tabpanel" id="tab-study">
+    <div class="grid2">
+      <div class="panel">
+        <h2>Log study time <span class="sub">— 1 min = 1 pt</span></h2>
+        <form id="studyForm">
+          <label for="studyMinutes">Minutes studied</label>
+          <input type="number" id="studyMinutes" min="1" value="30">
+          <label for="studyNote">Note (optional)</label>
+          <input type="text" id="studyNote" placeholder="e.g. Rotational mechanics revision">
+          <div class="points-preview">Adds <b id="studyPtsPreview">30</b> points</div>
+          <button type="submit" class="primary">Log session</button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Today's sessions <span class="sub" id="studyTotalToday"></span></h2>
+        <ul class="plain" id="studyList"></ul>
+        <p class="empty-note" id="emptyStudyNote">No study sessions logged today.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== WEEKLY REPORT TAB ===================== -->
+  <section class="tabpanel" id="tab-weekly">
+    <div class="panel">
+      <h2>This week vs last week</h2>
+      <div class="week-compare" id="weekCompare"></div>
+    </div>
+  </section>
+
+  <!-- ===================== ACHIEVEMENTS TAB ===================== -->
+  <section class="tabpanel" id="tab-achievements">
+    <div class="panel">
+      <h2>Achievements</h2>
+      <div class="ach-grid" id="achGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===================== CHAPTERS TAB ===================== -->
+  <section class="tabpanel" id="tab-chapters">
+    <div class="panel">
+      <h2>Chapter map <span class="sub">— theory, short notes &amp; questions solved. Doesn't affect points.</span></h2>
+      <div class="subjectbar" id="chapterSubjectBar">
+        <button class="subjbtn active" data-subject="physics">Physics</button>
+        <button class="subjbtn" data-subject="chem">Chemistry</button>
+        <button class="subjbtn" data-subject="maths">Maths</button>
+      </div>
+      <div class="chapter-progress" id="chapterProgress"></div>
+      <div id="chapterList"></div>
+    </div>
+  </section>
+
+  <!-- ===================== MOTIVATION TAB ===================== -->
+  <section class="tabpanel" id="tab-motivation">
+    <div class="panel" style="margin-bottom:18px;">
+      <h2>Today's controls</h2>
+      <div class="motivation-controls">
+        <button type="button" class="ctrlbtn" id="resetDayBtn">🔄 Reset My Day</button>
+        <button type="button" class="ctrlbtn" id="badDayBtn">🌧️ Bad Day Mode</button>
+        <span class="badday-status" id="badDayStatus"></span>
+      </div>
+      <p class="hint-text">Reset My Day clears only today's tasks/mocks/study log — everything before today stays untouched. Bad Day Mode temporarily shrinks today's question targets to something more realistic.</p>
+    </div>
+
+    <div class="panel" style="margin-bottom:18px;">
+      <h2>The group chat reacts <span class="sub">— based on your current stats</span></h2>
+      <div id="reactionsList"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h2>Study feed <span class="sub">— other aspirants grinding alongside you</span></h2>
+        <div id="botFeed"></div>
+      </div>
+      <div class="panel">
+        <h2>This week's leaderboard</h2>
+        <div id="leaderboard"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:18px;">
+      <h2>I'm Stuck / I Need Help</h2>
+      <label for="stuckInput">What's going on right now?</label>
+      <textarea id="stuckInput" rows="3" placeholder="e.g. I can't get through organic chemistry today, I've been on my phone for an hour instead of studying..."></textarea>
+      <div class="stuck-quickpicks" id="stuckQuickpicks">
+        <button type="button" data-cat="topic">Can't understand a topic</button>
+        <button type="button" data-cat="question">Stuck on a question</button>
+        <button type="button" data-cat="procrastinating">Procrastinating</button>
+        <button type="button" data-cat="overwhelmed">Feeling overwhelmed</button>
+        <button type="button" data-cat="wasted">Wasted the day</button>
+        <button type="button" data-cat="stressed">Stressed about JEE</button>
+      </div>
+      <button type="button" class="primary" id="stuckSubmit" style="margin-top:10px;">Get help</button>
+      <div id="stuckResponse" class="stuck-response"></div>
+    </div>
+  </section>
+
+  <footer class="foot">Progress is saved automatically on this device.</footer>
+</div>
+
+<div class="modal-overlay hidden" id="planModal">
+  <div class="modal">
+    <h3>Plan today's session</h3>
+    <p>You haven't added anything for today yet. Aim for 99 questions (33 each), and a mock test if it's on your schedule this week.</p>
+    <button class="primary" id="planModalClose">Let's go</button>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="weeklyModal">
+  <div class="modal">
+    <h3>Weekly wrap 📋</h3>
+    <p>Here's how this week stacked up against last week.</p>
+    <div class="week-compare" id="weeklyModalCompare"></div>
+    <button class="primary" id="weeklyModalClose">Nice, continue</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'ascent-tracker-state';
+  const POINTS = { question: 2, mockTest: 300, mockAnalysis: 500, lecturePerHour: 50, studyPerMinute: 1 };
+  const DAILY_SUBJECT_TARGET = 33;
+  const BAD_DAY_SUBJECT_TARGET = 10;
+  const WEEKLY_MOCK_TARGET = 4;
+  const SUBJECTS = ['physics','chem','maths'];
+
+  const ANALYSIS_STEPS = [
+    { key: 'resolve', label: 'Re-solved the paper' },
+    { key: 'mistakes', label: 'Identified mistake patterns' },
+    { key: 'weakChapters', label: 'Noted weak chapters' },
+    { key: 'concepts', label: 'Revised related concepts' }
+  ];
+
+  const ACHIEVEMENTS = [
+    { id: 'streak3', icon: '🔥', name: '3-Day Spark', desc: '3 day activity streak', check: s => s.longestStreak >= 3 },
+    { id: 'streak7', icon: '🔥', name: '7-Day Momentum', desc: '7 day activity streak', check: s => s.longestStreak >= 7 },
+    { id: 'streak21', icon: '🔥', name: '21-Day Habit', desc: '21 day activity streak', check: s => s.longestStreak >= 21 },
+    { id: 'firstMock', icon: '📝', name: 'First Mock', desc: 'Logged your first mock test', check: s => s.lifeMocks >= 1 },
+    { id: 'mock10', icon: '📝', name: 'Mock Marathoner', desc: '10 mock tests logged', check: s => s.lifeMocks >= 10 },
+    { id: 'q1000', icon: '🎯', name: '1,000 Questions', desc: '1,000 lifetime questions solved', check: s => s.lifeQuestions >= 1000 },
+    { id: 'q5000', icon: '🎯', name: '5,000 Questions', desc: '5,000 lifetime questions solved', check: s => s.lifeQuestions >= 5000 },
+    { id: 'errorHunter', icon: '🕵️', name: 'Error Hunter', desc: 'Completed a mock analysis', check: s => s.lifeAnalyses >= 1 },
+    { id: 'errorHunter5', icon: '🕵️', name: 'Error Hunter II', desc: '5 mock analyses completed', check: s => s.lifeAnalyses >= 5 },
+    { id: 'perfectDay', icon: '⭐', name: 'Perfect Day', desc: 'Hit 33/33/33 in one day', check: s => s.lifePerfectDays >= 1 },
+    { id: 'checkpoint33k', icon: '🚩', name: '33K Checkpoint', desc: 'Reached 33,000 total points', check: s => s.totalPoints >= 33000 }
+  ];
+
+  const CHAPTER_LISTS = {
+    physics: [
+      'Heat and Thermodynamics','Properties of Matter','Electrostatics','Current Electricity',
+      'Geometrical Optics','Units and Measurement','Kinematics','Atoms and Nuclei',
+      'Magnetic Effects of Electric Current','Rotational Motion','Wave Optics','Semiconductors',
+      'Dual Nature of Radiation','Gravitation','Alternating Current','NLM and Friction',
+      'Electromagnetic Induction','Simple Harmonic Motion','Work, Power and Energy',
+      'Electromagnetic Waves','Capacitors','Waves','COM and Collisions','Magnetic Properties of Matter'
+    ],
+    chem: [
+      'General Organic Chemistry','Coordination Compounds','Aldehydes, Ketones and Carboxylic Acids',
+      'Chemical Bonding and Molecular Structure','Electrochemistry','Thermodynamics',
+      'd and f Block Elements','Compounds Containing Nitrogen','s-Block Elements','Structure of Atom',
+      'Periodic Table and Periodicity','Equilibrium','Chemical Kinetics and Nuclear Chemistry',
+      'Solutions','Biomolecules','Hydrocarbons','Haloalkanes and Haloarenes','p-Block Elements',
+      'Alcohols, Phenols and Ethers','Redox Reactions','Practical Organic Chemistry','Salt Analysis'
+    ],
+    maths: [
+      'Coordinate Geometry','Matrices and Determinants','Three-Dimensional Geometry',
+      'Sequence and Series','Definite Integration','Vector Algebra','Differential Equations',
+      'Limits, Continuity and Differentiability','Probability','Complex Numbers',
+      'Permutations and Combinations','Binomial Theorem','Area Under Curves',
+      'Application of Derivatives','Sets, Relations and Functions','Quadratic Equations',
+      'Statistics','Inverse Trigonometric Functions','Trigonometric Ratios and Identities',
+      'Differentiation','Indefinite Integrals'
+    ]
+  };
+  const STATUS_STATES = ['not_started','in_progress','done'];
+  const STATUS_LABEL = { not_started: 'Not started', in_progress: 'In progress', done: 'Done' };
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function todayKey(d){ d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function keyToDate(k){ return new Date(k + 'T00:00:00'); }
+
+  function startOfWeek(d){
+    const dt = new Date(d);
+    const day = dt.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    dt.setDate(dt.getDate() + diff);
+    dt.setHours(0,0,0,0);
+    return dt;
+  }
+
+  function nextOccurrence(month, day){
+    const now = new Date();
+    let d = new Date(now.getFullYear(), month, day);
+    if (d < new Date(now.getFullYear(), now.getMonth(), now.getDate())) d = new Date(now.getFullYear()+1, month, day);
+    return d;
+  }
+  function daysUntil(d){
+    const now = new Date();
+    const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((d - a) / 86400000);
+  }
+
+  let state = {
+    goalPoints: 99000,
+    totalPoints: 0,
+    longestStreak: 0,
+    lastWeeklyPopupDate: null,
+    days: {}, // dateKey -> { tasks:[], studySessions:[], mocks:[] }
+    chapters: {} // subject -> [{ theory, notes, questionsSolved }] aligned by index to CHAPTER_LISTS
+  };
+
+  function ensureChapters(){
+    Object.keys(CHAPTER_LISTS).forEach(subject => {
+      if (!state.chapters[subject]) state.chapters[subject] = [];
+      CHAPTER_LISTS[subject].forEach((name, i) => {
+        if (!state.chapters[subject][i]) {
+          state.chapters[subject][i] = { theory: 'not_started', notes: 'not_started', questionsSolved: 0 };
+        }
+      });
+    });
+  }
+
+  async function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state = Object.assign(state, JSON.parse(raw));
+    }catch(e){ console.log('No existing state found, starting fresh.'); }
+  }
+  async function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch(e){ console.error('Could not save progress:', e); }
+  }
+
+  function getDay(key){
+    if (!state.days[key]) state.days[key] = { tasks: [], studySessions: [], mocks: [] };
+    if (!state.days[key].studySessions) state.days[key].studySessions = [];
+    if (!state.days[key].mocks) state.days[key].mocks = [];
+    return state.days[key];
+  }
+
+  function mockAllChecked(m){ return ANALYSIS_STEPS.every(s => m.analysis && m.analysis[s.key]); }
+
+  function dayPoints(dayObj){
+    let total = 0;
+    dayObj.tasks.forEach(t => { if (t.done) total += t.points; });
+    dayObj.studySessions.forEach(s => { total += s.minutes * POINTS.studyPerMinute; });
+    dayObj.mocks.forEach(m => { total += POINTS.mockTest; if (mockAllChecked(m)) total += POINTS.mockAnalysis; });
+    return total;
+  }
+
+  function recomputeTotalPoints(){
+    let total = 0;
+    Object.values(state.days).forEach(d => total += dayPoints(d));
+    state.totalPoints = total;
+  }
+
+  function lifeStats(){
+    let questions = 0, mocks = 0, analyses = 0, lectureMinutes = 0, studyMinutes = 0, perfectDays = 0;
+    Object.values(state.days).forEach(d => {
+      let physQ = 0, chemQ = 0, mathsQ = 0;
+      d.tasks.forEach(t => {
+        if (t.done && t.subject) {
+          questions += t.qty || 0;
+          if (t.subject === 'physics') physQ += t.qty || 0;
+          if (t.subject === 'chem') chemQ += t.qty || 0;
+          if (t.subject === 'maths') mathsQ += t.qty || 0;
+        }
+        if (t.done && t.type === 'lecture') lectureMinutes += (t.points / POINTS.lecturePerHour) * 60;
+      });
+      d.studySessions.forEach(s => { studyMinutes += s.minutes; });
+      d.mocks.forEach(m => { mocks++; if (mockAllChecked(m)) analyses++; });
+      if (physQ >= DAILY_SUBJECT_TARGET && chemQ >= DAILY_SUBJECT_TARGET && mathsQ >= DAILY_SUBJECT_TARGET) perfectDays++;
+    });
+    return {
+      lifeQuestions: questions,
+      lifeMocks: mocks,
+      lifeAnalyses: analyses,
+      lifeHours: Math.round(((lectureMinutes + studyMinutes) / 60) * 10) / 10,
+      lifePerfectDays: perfectDays
+    };
+  }
+
+  function computeStreak(){
+    let cursor = new Date();
+    if (dayPoints(getDay(todayKey(cursor))) <= 0) cursor.setDate(cursor.getDate() - 1);
+    let streak = 0;
+    while (dayPoints(getDay(todayKey(cursor))) > 0) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  // ================= TODAY TAB =================
+  const taskType = document.getElementById('taskType');
+  const qCount = document.getElementById('qCount');
+  const lecHours = document.getElementById('lecHours');
+  const customLabel = document.getElementById('customLabel');
+  const customPts = document.getElementById('customPts');
+  const ptsPreview = document.getElementById('ptsPreview');
+  const fieldGroups = document.querySelectorAll('#tab-today .field-group');
+
+  function currentPoints(){
+    const type = taskType.value;
+    if (SUBJECTS.includes(type)) return Math.max(0, parseInt(qCount.value || 0, 10)) * POINTS.question;
+    if (type === 'lecture') return Math.max(0, parseFloat(lecHours.value || 0)) * POINTS.lecturePerHour;
+    if (type === 'custom') return Math.max(0, parseInt(customPts.value || 0, 10));
+    return 0;
+  }
+  function currentLabel(){
+    const type = taskType.value;
+    if (type === 'physics') return qCount.value + ' physics questions';
+    if (type === 'chem') return qCount.value + ' chemistry questions';
+    if (type === 'maths') return qCount.value + ' maths questions';
+    if (type === 'lecture') return lecHours.value + ' hr lecture';
+    if (type === 'custom') return customLabel.value.trim() || 'Custom task';
+    return '';
+  }
+  function updateFieldVisibility(){
+    const type = taskType.value;
+    fieldGroups.forEach(g => g.classList.toggle('active', g.dataset.for.split(' ').includes(type)));
+    ptsPreview.textContent = currentPoints();
+  }
+  [taskType, qCount, lecHours, customPts].forEach(el => { el.addEventListener('input', updateFieldVisibility); el.addEventListener('change', updateFieldVisibility); });
+
+  document.getElementById('taskForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const type = taskType.value;
+    const points = currentPoints();
+    const label = currentLabel();
+    if (points <= 0 || (type === 'custom' && !customLabel.value.trim())) return;
+
+    const day = getDay(todayKey());
+    day.tasks.push({
+      id: 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      type, label, points, done: false,
+      subject: SUBJECTS.includes(type) ? type : null,
+      qty: SUBJECTS.includes(type) ? parseInt(qCount.value||0,10) : null
+    });
+    await saveState();
+    renderAll();
+    if (type === 'custom') customLabel.value = '';
+  });
+
+  function renderTodoList(){
+    const day = getDay(todayKey());
+    const list = document.getElementById('todoList');
+    const emptyNote = document.getElementById('emptyNote');
+    list.innerHTML = '';
+    if (day.tasks.length === 0) { emptyNote.style.display = 'block'; return; }
+    emptyNote.style.display = 'none';
+
+    day.tasks.forEach(t => {
+      const li = document.createElement('li');
+      li.className = 'task-item' + (t.done ? ' done' : '');
+
+      const check = document.createElement('button');
+      check.className = 'task-check' + (t.done ? ' checked' : '');
+      check.type = 'button';
+      check.setAttribute('aria-label', t.done ? 'Mark as not done' : 'Mark as done');
+      check.textContent = t.done ? '✓' : '';
+      check.addEventListener('click', async () => { t.done = !t.done; await saveState(); renderAll(); });
+
+      const label = document.createElement('span');
+      label.className = 'task-label'; label.textContent = t.label;
+      const pts = document.createElement('span');
+      pts.className = 'task-pts'; pts.textContent = '+' + t.points;
+      const del = document.createElement('button');
+      del.className = 'task-del'; del.type = 'button'; del.setAttribute('aria-label','Delete task'); del.textContent = '✕';
+      del.addEventListener('click', async () => { day.tasks = day.tasks.filter(x => x.id !== t.id); await saveState(); renderAll(); });
+
+      li.appendChild(check); li.appendChild(label); li.appendChild(pts); li.appendChild(del);
+      list.appendChild(li);
+    });
+  }
+
+  function setBar(prefix, value, target){
+    document.getElementById(prefix + 'CountLbl').textContent = value + ' / ' + target;
+    document.getElementById(prefix + 'Bar').style.width = Math.min(100, (value / target) * 100) + '%';
+  }
+
+  // ================= MOCK TESTS TAB =================
+  const mockDateInput = document.getElementById('mockDate');
+  mockDateInput.value = todayKey();
+
+  document.getElementById('mockForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const dateVal = mockDateInput.value || todayKey();
+    const label = document.getElementById('mockLabel').value.trim();
+    const scored = parseInt(document.getElementById('mockScored').value || 0, 10);
+    const total = parseInt(document.getElementById('mockTotal').value || 300, 10);
+    if (!label) return;
+
+    const day = getDay(dateVal);
+    day.mocks.push({
+      id: 'mock_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      date: dateVal, label, scored, total,
+      analysis: { resolve: false, mistakes: false, weakChapters: false, concepts: false }
+    });
+    await saveState();
+    document.getElementById('mockLabel').value = '';
+    document.getElementById('mockScored').value = 0;
+    renderAll();
+  });
+
+  function renderMockList(){
+    const wrap = document.getElementById('mockList');
+    const emptyNote = document.getElementById('emptyMockNote');
+    wrap.innerHTML = '';
+
+    const all = [];
+    Object.keys(state.days).forEach(k => state.days[k].mocks.forEach(m => all.push(m)));
+    all.sort((a,b) => (a.date < b.date ? 1 : -1));
+
+    if (all.length === 0) { emptyNote.style.display = 'block'; return; }
+    emptyNote.style.display = 'none';
+
+    all.forEach(m => {
+      const card = document.createElement('div');
+      card.className = 'mock-card';
+
+      const head = document.createElement('div');
+      head.className = 'mock-head';
+      const titleWrap = document.createElement('div');
+      const title = document.createElement('div');
+      title.className = 'mock-title'; title.textContent = m.label;
+      const meta = document.createElement('div');
+      meta.className = 'mock-meta'; meta.textContent = m.date + ' · +300 pts logged';
+      titleWrap.appendChild(title); titleWrap.appendChild(meta);
+
+      const score = document.createElement('div');
+      score.className = 'mock-score'; score.textContent = m.scored + ' / ' + m.total;
+
+      const del = document.createElement('button');
+      del.className = 'task-del'; del.type = 'button'; del.textContent = '✕'; del.setAttribute('aria-label','Delete mock');
+      del.addEventListener('click', async () => {
+        const day = getDay(m.date);
+        day.mocks = day.mocks.filter(x => x.id !== m.id);
+        await saveState(); renderAll();
+      });
+
+      const rightWrap = document.createElement('div');
+      rightWrap.style.display = 'flex'; rightWrap.style.alignItems = 'center'; rightWrap.style.gap = '10px';
+      rightWrap.appendChild(score); rightWrap.appendChild(del);
+
+      head.appendChild(titleWrap); head.appendChild(rightWrap);
+      card.appendChild(head);
+
+      const ul = document.createElement('ul');
+      ul.className = 'analysis-list';
+      ANALYSIS_STEPS.forEach(step => {
+        const li = document.createElement('li');
+        const checked = !!(m.analysis && m.analysis[step.key]);
+        li.className = 'analysis-item' + (checked ? ' checked' : '');
+        li.innerHTML = '<span class="box">' + (checked ? '✓' : '') + '</span><span>' + step.label + '</span>';
+        li.addEventListener('click', async () => {
+          m.analysis[step.key] = !m.analysis[step.key];
+          await saveState(); renderAll();
+        });
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+
+      const award = document.createElement('div');
+      const earned = mockAllChecked(m);
+      award.className = 'analysis-award' + (earned ? ' earned' : '');
+      award.textContent = earned ? '+500 pts earned for full analysis' : 'Complete all 4 steps to earn +500 pts';
+      card.appendChild(award);
+
+      wrap.appendChild(card);
+    });
+  }
+
+  // ================= STUDY HOURS TAB =================
+  const studyMinutesInput = document.getElementById('studyMinutes');
+  const studyPtsPreview = document.getElementById('studyPtsPreview');
+  studyMinutesInput.addEventListener('input', () => {
+    studyPtsPreview.textContent = Math.max(0, parseInt(studyMinutesInput.value || 0, 10)) * POINTS.studyPerMinute;
+  });
+
+  document.getElementById('studyForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const minutes = Math.max(0, parseInt(studyMinutesInput.value || 0, 10));
+    const note = document.getElementById('studyNote').value.trim();
+    if (minutes <= 0) return;
+    const day = getDay(todayKey());
+    day.studySessions.push({ id: 'study_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), minutes, note });
+    await saveState();
+    document.getElementById('studyNote').value = '';
+    renderAll();
+  });
+
+  function renderStudyList(){
+    const day = getDay(todayKey());
+    const list = document.getElementById('studyList');
+    const emptyNote = document.getElementById('emptyStudyNote');
+    list.innerHTML = '';
+
+    let totalMin = 0;
+    day.studySessions.forEach(s => totalMin += s.minutes);
+    document.getElementById('studyTotalToday').textContent = day.studySessions.length ? ('— ' + totalMin + ' min today') : '';
+
+    if (day.studySessions.length === 0) { emptyNote.style.display = 'block'; return; }
+    emptyNote.style.display = 'none';
+
+    day.studySessions.forEach(s => {
+      const li = document.createElement('li');
+      li.className = 'task-item';
+      const label = document.createElement('span');
+      label.className = 'task-label'; label.textContent = s.minutes + ' min' + (s.note ? ' — ' + s.note : '');
+      const pts = document.createElement('span');
+      pts.className = 'task-pts'; pts.textContent = '+' + (s.minutes * POINTS.studyPerMinute);
+      const del = document.createElement('button');
+      del.className = 'task-del'; del.type = 'button'; del.textContent = '✕'; del.setAttribute('aria-label','Delete session');
+      del.addEventListener('click', async () => { day.studySessions = day.studySessions.filter(x => x.id !== s.id); await saveState(); renderAll(); });
+      li.appendChild(label); li.appendChild(pts); li.appendChild(del);
+      list.appendChild(li);
+    });
+  }
+
+  // ================= WEEKLY REPORT =================
+  function weekRange(weekStart){
+    let points = 0, questions = 0, mocks = 0, studyMinutes = 0;
+    const end = new Date(weekStart); end.setDate(end.getDate() + 7);
+    Object.keys(state.days).forEach(k => {
+      const d = keyToDate(k);
+      if (d >= weekStart && d < end) {
+        const day = state.days[k];
+        day.tasks.forEach(t => { if (t.done) { points += t.points; if (t.subject) questions += t.qty || 0; } });
+        day.studySessions.forEach(s => { points += s.minutes * POINTS.studyPerMinute; studyMinutes += s.minutes; });
+        day.mocks.forEach(m => { points += POINTS.mockTest; mocks++; if (mockAllChecked(m)) points += POINTS.mockAnalysis; });
+      }
+    });
+    return { points, questions, mocks, studyMinutes };
+  }
+
+  function deltaSpan(cur, prev){
+    const diff = cur - prev;
+    if (diff === 0) return '';
+    const cls = diff > 0 ? 'up' : 'down';
+    const sign = diff > 0 ? '+' : '';
+    return '<span class="delta ' + cls + '">' + sign + diff + '</span>';
+  }
+
+  function buildCompareHTML(thisW, lastW){
+    const rows = [
+      ['Points earned', thisW.points, lastW.points],
+      ['Questions solved', thisW.questions, lastW.questions],
+      ['Mock tests', thisW.mocks, lastW.mocks],
+      ['Study minutes', thisW.studyMinutes, lastW.studyMinutes]
+    ];
+    let thisCol = '<div class="week-col"><h3>This week</h3>';
+    let lastCol = '<div class="week-col"><h3>Last week</h3>';
+    rows.forEach(r => {
+      thisCol += '<div class="week-stat"><span>' + r[0] + '</span><span class="v">' + r[1] + deltaSpan(r[1], r[2]) + '</span></div>';
+      lastCol += '<div class="week-stat"><span>' + r[0] + '</span><span class="v">' + r[2] + '</span></div>';
+    });
+    thisCol += '</div>'; lastCol += '</div>';
+    return thisCol + lastCol;
+  }
+
+  function renderWeekly(){
+    const thisWeekStart = startOfWeek(new Date());
+    const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+    const thisW = weekRange(thisWeekStart);
+    const lastW = weekRange(lastWeekStart);
+    document.getElementById('weekCompare').innerHTML = buildCompareHTML(thisW, lastW);
+    return { thisW, lastW };
+  }
+
+  function maybeShowWeeklyModal(){
+    const isSunday = new Date().getDay() === 0;
+    if (isSunday && state.lastWeeklyPopupDate !== todayKey()) {
+      const { thisW, lastW } = renderWeekly();
+      document.getElementById('weeklyModalCompare').innerHTML = buildCompareHTML(thisW, lastW);
+      document.getElementById('weeklyModal').classList.remove('hidden');
+      state.lastWeeklyPopupDate = todayKey();
+      saveState();
+    }
+  }
+  document.getElementById('weeklyModalClose').addEventListener('click', () => document.getElementById('weeklyModal').classList.add('hidden'));
+
+  // ================= ACHIEVEMENTS =================
+  function renderAchievements(stats){
+    const grid = document.getElementById('achGrid');
+    grid.innerHTML = '';
+    ACHIEVEMENTS.forEach(a => {
+      const unlocked = a.check(stats);
+      const card = document.createElement('div');
+      card.className = 'ach-card' + (unlocked ? ' unlocked' : '');
+      card.innerHTML = '<div class="icon">' + a.icon + '</div><div class="name">' + a.name + '</div><div class="desc">' + a.desc + '</div>';
+      grid.appendChild(card);
+    });
+  }
+
+  // ================= CHAPTERS TAB =================
+  let currentChapterSubject = 'physics';
+
+  document.querySelectorAll('#chapterSubjectBar .subjbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentChapterSubject = btn.dataset.subject;
+      document.querySelectorAll('#chapterSubjectBar .subjbtn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderChapters();
+    });
+  });
+
+  function cycleStatus(current){
+    const idx = STATUS_STATES.indexOf(current);
+    return STATUS_STATES[(idx + 1) % STATUS_STATES.length];
+  }
+
+  function renderChapters(){
+    ensureChapters();
+    const subject = currentChapterSubject;
+    const names = CHAPTER_LISTS[subject];
+    const data = state.chapters[subject];
+
+    let theoryDone = 0, notesDone = 0;
+    data.forEach(c => { if (c.theory === 'done') theoryDone++; if (c.notes === 'done') notesDone++; });
+    document.getElementById('chapterProgress').innerHTML =
+      '<span><b>' + theoryDone + ' / ' + names.length + '</b> theory done</span>' +
+      '<span><b>' + notesDone + ' / ' + names.length + '</b> short notes done</span>';
+
+    const listEl = document.getElementById('chapterList');
+    listEl.innerHTML = '';
+
+    names.forEach((name, i) => {
+      const c = data[i];
+      const card = document.createElement('div');
+      card.className = 'chapter-card';
+      card.style.borderLeftColor = subject === 'physics' ? 'var(--amber)' : (subject === 'chem' ? 'var(--teal)' : 'var(--violet)');
+
+      const rank = document.createElement('div');
+      rank.className = 'rank'; rank.textContent = '#' + (i + 1);
+
+      const cname = document.createElement('div');
+      cname.className = 'cname'; cname.textContent = name;
+
+      const theoryBtn = document.createElement('button');
+      theoryBtn.type = 'button'; theoryBtn.className = 'status-pill';
+      theoryBtn.dataset.state = c.theory;
+      theoryBtn.textContent = 'Theory: ' + STATUS_LABEL[c.theory];
+      theoryBtn.addEventListener('click', async () => { c.theory = cycleStatus(c.theory); await saveState(); renderChapters(); });
+
+      const notesBtn = document.createElement('button');
+      notesBtn.type = 'button'; notesBtn.className = 'status-pill';
+      notesBtn.dataset.state = c.notes;
+      notesBtn.textContent = 'Notes: ' + STATUS_LABEL[c.notes];
+      notesBtn.addEventListener('click', async () => { c.notes = cycleStatus(c.notes); await saveState(); renderChapters(); });
+
+      const qWrap = document.createElement('div');
+      qWrap.className = 'qsolved';
+      const qCountSpan = document.createElement('span');
+      qCountSpan.className = 'count'; qCountSpan.textContent = c.questionsSolved + ' solved';
+      const qInput = document.createElement('input');
+      qInput.type = 'number'; qInput.min = '1'; qInput.placeholder = '10';
+      const qAddBtn = document.createElement('button');
+      qAddBtn.type = 'button'; qAddBtn.textContent = '+ Add';
+      qAddBtn.addEventListener('click', async () => {
+        const n = Math.max(0, parseInt(qInput.value || 0, 10));
+        if (n > 0) { c.questionsSolved += n; qInput.value = ''; await saveState(); renderChapters(); }
+      });
+      qWrap.appendChild(qCountSpan); qWrap.appendChild(qInput); qWrap.appendChild(qAddBtn);
+
+      card.appendChild(rank); card.appendChild(cname); card.appendChild(theoryBtn); card.appendChild(notesBtn); card.appendChild(qWrap);
+      listEl.appendChild(card);
+    });
+  }
+
+  // ================= MOTIVATION: BOT PERSONAS =================
+  const BOT_EPOCH = new Date('2026-06-01T00:00:00');
+  const BOT_PERSONAS = [
+    { id:'aarav', name:'Aarav', emoji:'📐', tag:'Maths grinder, night owl', strength:'maths', baseRate: 620, consistency: 0.75 },
+    { id:'diya',  name:'Diya',  emoji:'🧪', tag:'Chem topper, early riser', strength:'chem', baseRate: 700, consistency: 0.85 },
+    { id:'kabir', name:'Kabir', emoji:'⚡', tag:'Physics-obsessed, streaky', strength:'physics', baseRate: 560, consistency: 0.55 },
+    { id:'meera', name:'Meera', emoji:'📚', tag:'Slow and steady, rarely misses', strength:'chem', baseRate: 480, consistency: 0.9 },
+    { id:'rohan', name:'Rohan', emoji:'🎮', tag:'Talented but distractible', strength:'physics', baseRate: 640, consistency: 0.4 },
+    { id:'ishita',name:'Ishita',emoji:'✍️', tag:'Mock-test machine', strength:'maths', baseRate: 590, consistency: 0.7 }
+  ];
+
+  function hashSeed(str){
+    let h = 1779033703 ^ str.length;
+    for (let i = 0; i < str.length; i++){
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+      h = (h << 13) | (h >>> 19);
+    }
+    return function(){
+      h = Math.imul(h ^ (h >>> 16), 2246822507);
+      h = Math.imul(h ^ (h >>> 13), 3266489909);
+      h ^= h >>> 16;
+      return (h >>> 0) / 4294967296;
+    };
+  }
+
+  function simulateBotDay(persona, dateKey){
+    const rand = hashSeed(persona.id + '_' + dateKey);
+    const roll = rand(); // 0-1, chance of a good day scaled by consistency
+    let mood;
+    if (roll < (1 - persona.consistency) * 0.35) mood = 'bad';
+    else if (roll < (1 - persona.consistency) * 0.35 + 0.25) mood = 'meh';
+    else if (roll < 0.85) mood = 'good';
+    else mood = 'great';
+
+    const moodMultiplier = { bad: 0.15, meh: 0.5, good: 1, great: 1.4 }[mood];
+    const noise = 0.8 + rand() * 0.4;
+    const points = Math.max(0, Math.round(persona.baseRate * moodMultiplier * noise));
+    const questions = Math.round(points / 2.6);
+    const mockTaken = mood !== 'bad' && rand() > 0.87;
+    const chapterDone = mood === 'great' || (mood === 'good' && rand() > 0.6);
+
+    return { mood, points, questions, mockTaken, chapterDone };
+  }
+
+  const POST_TEMPLATES = {
+    great: [
+      '{q} questions down today, feeling unstoppable 🔥',
+      'Finished a chapter AND hit {q} questions. Best day in a while.',
+      'On a roll — {q} questions solved, barely felt the time pass.'
+    ],
+    good: [
+      'Solid session, {q} questions solved. Slowly getting there.',
+      'Did {q} questions today, chipping away steadily.',
+      'Took a mock today, decent attempt. Also cleared {q} questions.'
+    ],
+    meh: [
+      'Managed {q} questions, wasn\'t the best focus today but showed up.',
+      'Slow day, only {q} questions, but at least I sat down and studied.',
+      'Distracted a lot today, still scraped together {q} questions.'
+    ],
+    bad: [
+      'Rough day honestly, barely touched books. Maybe {q} questions total.',
+      'Procrastinated most of the day, phone won. {q} questions if that.',
+      'Feeling burnt out, could only manage {q} questions. Resetting tomorrow.'
+    ]
+  };
+
+  function botTemplateText(persona, sim){
+    const arr = POST_TEMPLATES[sim.mood];
+    const rand = hashSeed(persona.id + '_txt_' + sim.points);
+    const idx = Math.floor(rand() * arr.length);
+    let text = arr[idx].replace('{q}', sim.questions);
+    if (sim.chapterDone) text += ' Also wrapped up a full chapter today.';
+    if (sim.mockTaken) text += ' Squeezed in a mock test too.';
+    return text;
+  }
+
+  function relativeDayLabel(daysAgo){
+    if (daysAgo === 0) return 'Today';
+    if (daysAgo === 1) return 'Yesterday';
+    return daysAgo + ' days ago';
+  }
+
+  function renderBotFeed(){
+    const feed = document.getElementById('botFeed');
+    feed.innerHTML = '';
+    const entries = [];
+    for (let d = 0; d < 6; d++){
+      const date = new Date(); date.setDate(date.getDate() - d);
+      const key = todayKey(date);
+      BOT_PERSONAS.forEach(persona => {
+        const sim = simulateBotDay(persona, key);
+        entries.push({ persona, sim, daysAgo: d });
+      });
+    }
+    // Show a manageable slice: prioritize great/bad days for realism, most recent first
+    entries.sort((a,b) => a.daysAgo - b.daysAgo);
+    const picked = [];
+    const seenPerDay = {};
+    entries.forEach(e => {
+      seenPerDay[e.daysAgo] = seenPerDay[e.daysAgo] || 0;
+      if (seenPerDay[e.daysAgo] < 3 && picked.length < 12) {
+        picked.push(e); seenPerDay[e.daysAgo]++;
+      }
+    });
+
+    picked.forEach(e => {
+      const card = document.createElement('div');
+      card.className = 'feed-card';
+      const head = document.createElement('div');
+      head.className = 'fhead';
+      head.innerHTML =
+        '<span class="favatar">' + e.persona.emoji + '</span>' +
+        '<span><span class="fname">' + e.persona.name + '</span><br><span class="ftag">' + e.persona.tag + '</span></span>' +
+        '<span class="ftime"><span class="mood-dot mood-' + e.sim.mood + '"></span>' + relativeDayLabel(e.daysAgo) + '</span>';
+      const text = document.createElement('div');
+      text.className = 'ftext';
+      text.textContent = botTemplateText(e.persona, e.sim);
+      card.appendChild(head); card.appendChild(text);
+      feed.appendChild(card);
+    });
+  }
+
+  function botWeeklyPoints(persona, weekStart){
+    let total = 0, questions = 0, mocks = 0;
+    for (let i = 0; i < 7; i++){
+      const d = new Date(weekStart); d.setDate(d.getDate() + i);
+      if (d > new Date()) continue;
+      const sim = simulateBotDay(persona, todayKey(d));
+      total += sim.points; questions += sim.questions; if (sim.mockTaken) mocks++;
+    }
+    return { total, questions, mocks };
+  }
+
+  function renderLeaderboard(){
+    const weekStart = startOfWeek(new Date());
+    const rows = BOT_PERSONAS.map(p => {
+      const w = botWeeklyPoints(p, weekStart);
+      return { name: p.name + ' ' + p.emoji, points: w.total, isUser: false };
+    });
+    const userWeek = weekRange(weekStart);
+    rows.push({ name: 'You', points: userWeek.points, isUser: true });
+    rows.sort((a,b) => b.points - a.points);
+
+    const wrap = document.getElementById('leaderboard');
+    wrap.innerHTML = '';
+    rows.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'lb-row' + (r.isUser ? ' you' : '');
+      const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : (i+1)));
+      row.innerHTML = '<span class="lb-rank">' + medal + '</span><span class="lb-name">' + r.name + '</span><span class="lb-pts">' + r.points + ' pts</span>';
+      wrap.appendChild(row);
+    });
+  }
+
+  const REACTION_TEMPLATES = {
+    streakHigh: ['Wait, a {n}-day streak? Okay teach me your ways 👀','{n} days straight, that\'s actually insane, keep going!'],
+    streakMid: ['{n}-day streak going, nice consistency building up.','Liking this {n} day streak, don\'t break it now!'],
+    activeToday: ['Saw you already logged points today, good start 💪','You\'re ahead of me today, ugh, motivating though.'],
+    quietToday: ['Haven\'t seen you post today yet — even 20 minutes counts, hop in.','No update from you today, everything okay? Small step still beats none.'],
+    goalNear: ['You\'re getting close to your goal, don\'t slow down now 🚩','That flag is basically in sight, finish strong.']
+  };
+  function pickTemplate(arr, seedStr){ const r = hashSeed(seedStr)(); return arr[Math.floor(r*arr.length)]; }
+
+  function renderReactions(){
+    const streak = computeStreak();
+    const today = getDay(todayKey());
+    const todayPts = dayPoints(today);
+    const pct = state.totalPoints / state.goalPoints;
+    const seed = todayKey();
+    const reactors = [BOT_PERSONAS[Math.floor(hashSeed(seed+'a')()*BOT_PERSONAS.length)], BOT_PERSONAS[Math.floor(hashSeed(seed+'b')()*BOT_PERSONAS.length)]];
+
+    const messages = [];
+    if (streak >= 7) messages.push(pickTemplate(REACTION_TEMPLATES.streakHigh, seed+'s1').replace('{n}', streak));
+    else if (streak >= 3) messages.push(pickTemplate(REACTION_TEMPLATES.streakMid, seed+'s2').replace('{n}', streak));
+
+    if (todayPts > 0) messages.push(pickTemplate(REACTION_TEMPLATES.activeToday, seed+'a1'));
+    else messages.push(pickTemplate(REACTION_TEMPLATES.quietToday, seed+'a2'));
+
+    if (pct >= 0.8 && pct < 1) messages.push(pickTemplate(REACTION_TEMPLATES.goalNear, seed+'g1'));
+
+    const wrap = document.getElementById('reactionsList');
+    wrap.innerHTML = '';
+    if (messages.length === 0) { wrap.innerHTML = '<p class="empty-note">The group\'s quiet right now — add a task to get some reactions.</p>'; return; }
+    messages.slice(0,2).forEach((m, i) => {
+      const bot = reactors[i % reactors.length];
+      const item = document.createElement('div');
+      item.className = 'reaction-item';
+      item.innerHTML = '<span class="ravatar">' + bot.emoji + '</span><span><span class="rname">' + bot.name + '</span><span class="rtext">' + m + '</span></span>';
+      wrap.appendChild(item);
+    });
+  }
+
+  // ================= MOTIVATION: I'M STUCK =================
+  const STUCK_CATEGORIES = {
+    topic: {
+      keywords: ['understand', "don't get", 'confus', 'concept', 'topic', 'chapter'],
+      opener: "Getting stuck on a topic is normal — it usually means you jumped to problems before the concept settled, not that you're bad at it.",
+      steps: [
+        'Go back to the one sub-topic where it stopped making sense — not the whole chapter, just that piece.',
+        'Watch or read one short explanation of just that piece (10-15 min max).',
+        'Solve 3 easy questions on that piece before returning to the harder ones.'
+      ]
+    },
+    question: {
+      keywords: ['question', 'problem', 'solve', 'stuck on'],
+      opener: "One tough question isn't worth burning your whole session — set a timer so it doesn't spiral.",
+      steps: [
+        'Give it one more focused attempt, max 10 minutes.',
+        'If still stuck, mark it, move to the next question, and come back later with a fresh head.',
+        'Check the solution only after your second attempt, and note the exact step you missed.'
+      ]
+    },
+    procrastinating: {
+      keywords: ['procrastinat', 'phone', 'distract', 'lazy', 'putting off', 'scroll'],
+      opener: "Procrastination is usually about the task feeling too big, not about willpower.",
+      steps: [
+        'Set a timer for just 10 minutes of one specific task — not "study", something concrete like "10 physics questions".',
+        'Put your phone in another room or use a blocker app for that window.',
+        'When the timer ends, decide if you\'ll do 10 more minutes — most people keep going once they start.'
+      ]
+    },
+    overwhelmed: {
+      keywords: ['overwhelm', 'too much', "can't keep up", 'behind', 'anxious', 'panic'],
+      opener: "When everything feels like too much, the fix isn't doing more — it's shrinking what 'today' means.",
+      steps: [
+        'Pick exactly one subject and one chapter for the next hour. Ignore everything else for now.',
+        'Consider flipping on Bad Day Mode above — a smaller target still counts as progress.',
+        'Write down the 3 things actually due this week, not everything left in the syllabus.'
+      ]
+    },
+    wasted: {
+      keywords: ['wasted', 'wasted the day', 'did nothing', 'no work', 'lost the day'],
+      opener: "A wasted day doesn't erase the days before it — your streak and total points are still there.",
+      steps: [
+        'Don\'t try to "make up" the whole day tonight, that usually backfires. Do one solid 45-minute block instead.',
+        'Use Reset My Day above so tomorrow starts clean without extra guilt hanging over it.',
+        'Pick one easy win — 15-20 questions in your strongest subject — to end the day on progress, not zero.'
+      ]
+    },
+    stressed: {
+      keywords: ['stress', 'jee', 'exam', 'scared', 'fail', 'pressure', 'worried'],
+      opener: "Exam stress is your brain treating this as more urgent than useful right now — that's worth noticing, not fighting.",
+      steps: [
+        'Take 5 minutes away from books entirely — walk, water, breathe. This isn\'t wasted time.',
+        'Zoom out to just today\'s tasks, not the whole syllabus or the exam date.',
+        'Remind yourself: consistent average days beat a few perfect days and many burnt-out ones.'
+      ]
+    }
+  };
+
+  function classifyStuck(text, forcedCat){
+    if (forcedCat && STUCK_CATEGORIES[forcedCat]) return forcedCat;
+    const t = text.toLowerCase();
+    for (const cat in STUCK_CATEGORIES){
+      if (STUCK_CATEGORIES[cat].keywords.some(k => t.includes(k))) return cat;
+    }
+    return 'overwhelmed';
+  }
+
+  let selectedStuckCat = null;
+  document.querySelectorAll('#stuckQuickpicks button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const isActive = btn.classList.contains('active');
+      document.querySelectorAll('#stuckQuickpicks button').forEach(b => b.classList.remove('active'));
+      selectedStuckCat = isActive ? null : btn.dataset.cat;
+      if (!isActive) btn.classList.add('active');
+    });
+  });
+
+  document.getElementById('stuckSubmit').addEventListener('click', () => {
+    const text = document.getElementById('stuckInput').value.trim();
+    if (!text && !selectedStuckCat) return;
+    const cat = classifyStuck(text, selectedStuckCat);
+    const info = STUCK_CATEGORIES[cat];
+    const box = document.getElementById('stuckResponse');
+    box.innerHTML = '<p>' + info.opener + '</p><ul>' + info.steps.map(s => '<li>' + s + '</li>').join('') + '</ul>';
+    box.classList.add('visible');
+  });
+
+  // ================= MOTIVATION: RESET DAY / BAD DAY MODE =================
+  document.getElementById('resetDayBtn').addEventListener('click', async () => {
+    const ok = confirm('Reset today\'s tasks, mocks and study log? Everything before today stays exactly as is.');
+    if (!ok) return;
+    state.days[todayKey()] = { tasks: [], studySessions: [], mocks: [], badDay: false };
+    await saveState();
+    await renderAll();
+    renderMotivation();
+  });
+
+  document.getElementById('badDayBtn').addEventListener('click', async () => {
+    const day = getDay(todayKey());
+    day.badDay = !day.badDay;
+    await saveState();
+    await renderAll();
+    renderMotivation();
+  });
+
+  function renderBadDayStatus(){
+    const day = getDay(todayKey());
+    const btn = document.getElementById('badDayBtn');
+    const status = document.getElementById('badDayStatus');
+    btn.classList.toggle('active', !!day.badDay);
+    status.textContent = day.badDay ? 'Bad Day Mode is ON — today\'s question target is lowered.' : '';
+  }
+
+  function renderMotivation(){
+    renderReactions();
+    renderBotFeed();
+    renderLeaderboard();
+    renderBadDayStatus();
+  }
+
+  // ================= COUNTDOWNS =================
+  function renderCountdowns(){
+    document.getElementById('cdSyllabus').textContent = Math.max(0, daysUntil(nextOccurrence(9, 1)));
+    document.getElementById('cdCet').textContent = Math.max(0, daysUntil(nextOccurrence(11, 15)));
+    document.getElementById('cdJee').textContent = Math.max(0, daysUntil(nextOccurrence(0, 15)));
+  }
+
+  // ================= GOAL / TRACK =================
+  const goalInput = document.getElementById('goalInput');
+  goalInput.addEventListener('change', async () => {
+    const v = parseInt(goalInput.value || 0, 10);
+    if (v > 0) { state.goalPoints = v; await saveState(); renderAll(); }
+  });
+
+  function renderTrack(){
+    recomputeTotalPoints();
+    document.getElementById('totalPointsDisplay').textContent = state.totalPoints;
+    document.getElementById('goalDisplay').textContent = state.goalPoints;
+    const pct = Math.min(1, state.totalPoints / state.goalPoints);
+    document.getElementById('trackFill').style.width = (pct * 100) + '%';
+    document.getElementById('runner').style.left = (pct * 100) + '%';
+    document.getElementById('pctToGoal').textContent = Math.round(pct * 100) + '% of the way there';
+    document.getElementById('milestoneCount').textContent = Math.floor(state.totalPoints / 1000) + ' milestones passed (1,000 pts each)';
+
+    const wrap = document.getElementById('milestones');
+    wrap.innerHTML = '';
+    const totalMilestones = Math.floor(state.goalPoints / 1000);
+    const maxTicksToDraw = 40;
+    const step = Math.max(1, Math.round(totalMilestones / maxTicksToDraw));
+    for (let m = step; m < totalMilestones; m += step) {
+      const p = (m * 1000 / state.goalPoints) * 100;
+      const tick = document.createElement('div');
+      tick.className = 'milestone-tick'; tick.style.left = p + '%';
+      wrap.appendChild(tick);
+    }
+  }
+
+  // ================= STATS STRIP =================
+  function renderStatsStrip(life){
+    const streak = computeStreak();
+    state.longestStreak = Math.max(state.longestStreak || 0, streak);
+    document.getElementById('streakDisplay').textContent = streak + ' 🔥';
+    document.getElementById('longestStreakDisplay').textContent = state.longestStreak;
+    document.getElementById('lifeQuestions').textContent = life.lifeQuestions;
+    document.getElementById('lifeHours').textContent = life.lifeHours + 'h';
+    document.getElementById('lifeMocks').textContent = life.lifeMocks;
+    return streak;
+  }
+
+  // ================= TABS =================
+  document.querySelectorAll('.tabbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ================= PLAN MODAL =================
+  function maybeShowPlanModal(){
+    const day = getDay(todayKey());
+    if (day.tasks.length === 0 && day.studySessions.length === 0 && day.mocks.length === 0) {
+      document.getElementById('planModal').classList.remove('hidden');
+    }
+  }
+  document.getElementById('planModalClose').addEventListener('click', () => document.getElementById('planModal').classList.add('hidden'));
+
+  // ================= RENDER ALL =================
+  async function renderAll(){
+    document.getElementById('todayDateLabel').textContent = '— ' + new Date().toDateString();
+    renderTodoList();
+    renderMockList();
+    renderStudyList();
+    renderWeekly();
+
+    const day = getDay(todayKey());
+    let todayPts = 0, physDone = 0, chemDone = 0, mathsDone = 0;
+    day.tasks.forEach(t => {
+      if (t.done) {
+        todayPts += t.points;
+        if (t.subject === 'physics') physDone += t.qty || 0;
+        if (t.subject === 'chem') chemDone += t.qty || 0;
+        if (t.subject === 'maths') mathsDone += t.qty || 0;
+      }
+    });
+    day.studySessions.forEach(s => todayPts += s.minutes * POINTS.studyPerMinute);
+    day.mocks.forEach(m => { todayPts += POINTS.mockTest; if (mockAllChecked(m)) todayPts += POINTS.mockAnalysis; });
+    document.getElementById('todayPoints').textContent = todayPts;
+
+    setBar('phys', physDone, day.badDay ? BAD_DAY_SUBJECT_TARGET : DAILY_SUBJECT_TARGET);
+    setBar('chem', chemDone, day.badDay ? BAD_DAY_SUBJECT_TARGET : DAILY_SUBJECT_TARGET);
+    setBar('maths', mathsDone, day.badDay ? BAD_DAY_SUBJECT_TARGET : DAILY_SUBJECT_TARGET);
+
+    const weekStart = startOfWeek(new Date());
+    let mockCount = 0;
+    Object.keys(state.days).forEach(k => { if (keyToDate(k) >= weekStart) mockCount += state.days[k].mocks.length; });
+    document.getElementById('mockCountLbl').textContent = mockCount + ' / ' + WEEKLY_MOCK_TARGET;
+    document.getElementById('mockBar').style.width = Math.min(100, (mockCount / WEEKLY_MOCK_TARGET) * 100) + '%';
+
+    renderTrack();
+    const life = lifeStats();
+    const streak = renderStatsStrip(life);
+    renderAchievements(Object.assign({ totalPoints: state.totalPoints, longestStreak: state.longestStreak }, life));
+
+    goalInput.value = state.goalPoints;
+    renderMotivation();
+    await saveState();
+  }
+
+  (async function init(){
+    await loadState();
+    ensureChapters();
+    updateFieldVisibility();
+    await renderAll();
+    renderChapters();
+    renderCountdowns();
+    maybeShowPlanModal();
+    maybeShowWeeklyModal();
+  })();
+
+})();
+</script>
+
+</body>
+</html>
