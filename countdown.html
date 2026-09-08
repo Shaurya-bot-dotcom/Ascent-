@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Countdown — JEE / CET</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0F1320;
+    --panel: #171C2C;
+    --panel-border: #262D42;
+    --text: #EDEEF3;
+    --text-muted: #8991A8;
+    --gold: #F2C14E;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body{
+    background: radial-gradient(circle at 15% 0%, #161B30 0%, var(--bg) 45%);
+    color: var(--text); font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh; padding: 28px 20px 60px;
+  }
+  h1{ font-family:'Space Grotesk',sans-serif; font-size: 24px; margin: 0 0 4px; }
+  p.tagline{ color: var(--text-muted); margin: 0 0 22px; font-size: 14px; }
+  .app{ max-width: 760px; margin: 0 auto; }
+
+  .back-link{
+    display:inline-block; margin-bottom: 18px; color: var(--text-muted); font-size: 13px;
+    text-decoration: none; border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 8px;
+  }
+  .back-link:hover{ color: var(--gold); border-color: var(--gold); }
+
+  .calendar-month{
+    background: var(--gold); border-radius: 14px; padding: 16px; margin-bottom: 18px; color: #1A1408;
+  }
+  .calendar-month-title{ font-family:'Space Grotesk',sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 12px; }
+  .calendar-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .calendar-daylabel{ font-size: 11px; font-weight: 700; text-align:center; opacity: 0.65; padding-bottom: 2px; }
+  .calendar-day{
+    position: relative; background: rgba(255,255,255,0.4); border-radius: 8px;
+    min-height: 42px; display:flex; align-items:flex-start; justify-content:flex-start;
+    padding: 5px 6px; font-size: 12.5px; font-weight: 700; cursor: pointer; user-select:none;
+  }
+  .calendar-day.empty{ background: transparent; cursor: default; }
+  .calendar-day.today{ outline: 2px solid #1A1408; outline-offset: -2px; }
+  .calendar-day.past::after{
+    content: '✕'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color: #D6304A; font-size: 20px; font-weight: 800;
+  }
+  .calendar-day.has-note{ background: rgba(255,255,255,0.65); }
+  .calendar-day .bookmark-dot{ position:absolute; top:3px; right:5px; font-size: 11px; }
+  .calendar-day .note-icon{ position:absolute; bottom:3px; right:5px; font-size: 11px; cursor:pointer; }
+
+  .modal-overlay{ position: fixed; inset:0; background: rgba(6,8,16,0.72); display:flex; align-items:center; justify-content:center; z-index: 50; padding: 20px; }
+  .modal-overlay.hidden{ display:none; }
+  .modal{ background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px; padding: 24px; max-width: 380px; width:100%; }
+  .modal h3{ margin: 0 0 12px; font-size: 16px; font-family:'Space Grotesk',sans-serif; }
+  .modal textarea{
+    width:100%; background: var(--bg); border: 1px solid var(--panel-border); color: var(--text);
+    border-radius: 8px; padding: 10px; font-family: inherit; font-size: 14px; resize: vertical; margin-bottom: 14px;
+  }
+  .modal-btns{ display:flex; gap: 8px; }
+  .modal-btns button{
+    flex:1; border:none; border-radius: 8px; padding: 9px 12px; font-size: 13.5px; font-weight: 600;
+    cursor:pointer; font-family: inherit;
+  }
+  .btn-save{ background: var(--gold); color: #1A1408; }
+  .btn-plain{ background: var(--panel-border); color: var(--text); }
+
+  footer.foot{ text-align:center; color: var(--text-muted); font-size: 12px; margin-top: 28px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <a class="back-link" href="jee-prep-tracker.html">← Back to tracker</a>
+  <h1>Countdown to New Year</h1>
+  <p class="tagline">Click a day to bookmark it. Click the pencil to add a note — hover a day to read it.</p>
+  <div id="countdownCalendars"></div>
+  <footer class="foot">Progress is saved automatically on this device.</footer>
+</div>
+
+<div class="modal-overlay hidden" id="noteModal">
+  <div class="modal">
+    <h3 id="noteModalTitle">Note</h3>
+    <textarea id="noteModalText" rows="4"></textarea>
+    <div class="modal-btns">
+      <button class="btn-save" id="noteModalSave">Save</button>
+      <button class="btn-plain" id="noteModalDelete">Delete</button>
+      <button class="btn-plain" id="noteModalCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'ascent-countdown-state';
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  let state = { bookmarks: {}, dayNotes: {} };
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function todayKey(d){ d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state = Object.assign(state, JSON.parse(raw));
+    }catch(e){ console.log('No existing state found, starting fresh.'); }
+    if (!state.bookmarks) state.bookmarks = {};
+    if (!state.dayNotes) state.dayNotes = {};
+  }
+  function saveState(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch(e){ console.error('Could not save progress:', e); }
+  }
+
+  let currentNoteKey = null;
+  function openNoteModal(key, label){
+    currentNoteKey = key;
+    document.getElementById('noteModalTitle').textContent = 'Note for ' + label;
+    document.getElementById('noteModalText').value = state.dayNotes[key] || '';
+    document.getElementById('noteModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('noteModalText').focus(), 50);
+  }
+  function closeNoteModal(){
+    document.getElementById('noteModal').classList.add('hidden');
+    currentNoteKey = null;
+  }
+  document.getElementById('noteModalCancel').addEventListener('click', closeNoteModal);
+  document.getElementById('noteModalSave').addEventListener('click', () => {
+    if (!currentNoteKey) return;
+    const val = document.getElementById('noteModalText').value.trim();
+    if (val === '') delete state.dayNotes[currentNoteKey];
+    else state.dayNotes[currentNoteKey] = val;
+    saveState();
+    closeNoteModal();
+    renderCalendar();
+  });
+  document.getElementById('noteModalDelete').addEventListener('click', () => {
+    if (!currentNoteKey) return;
+    delete state.dayNotes[currentNoteKey];
+    saveState();
+    closeNoteModal();
+    renderCalendar();
+  });
+
+  function renderCalendar(){
+    const wrap = document.getElementById('countdownCalendars');
+    wrap.innerHTML = '';
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const year = now.getFullYear();
+
+    for (let month = now.getMonth(); month <= 11; month++){
+      const monthEl = document.createElement('div');
+      monthEl.className = 'calendar-month';
+
+      const title = document.createElement('div');
+      title.className = 'calendar-month-title';
+      title.textContent = MONTH_NAMES[month] + ' ' + year;
+      monthEl.appendChild(title);
+
+      const grid = document.createElement('div');
+      grid.className = 'calendar-grid';
+      DAY_LABELS.forEach(d => {
+        const lbl = document.createElement('div');
+        lbl.className = 'calendar-daylabel'; lbl.textContent = d;
+        grid.appendChild(lbl);
+      });
+
+      const firstDay = new Date(year, month, 1);
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const leadingBlanks = firstDay.getDay();
+
+      for (let i = 0; i < leadingBlanks; i++){
+        const blank = document.createElement('div');
+        blank.className = 'calendar-day empty';
+        grid.appendChild(blank);
+      }
+
+      for (let dnum = 1; dnum <= daysInMonth; dnum++){
+        const dateObj = new Date(year, month, dnum);
+        const key = todayKey(dateObj);
+        const cell = document.createElement('div');
+        cell.className = 'calendar-day';
+        if (dateObj < startOfToday) cell.classList.add('past');
+        if (dateObj.getTime() === startOfToday.getTime()) cell.classList.add('today');
+        cell.textContent = dnum;
+
+        if (state.dayNotes[key]) {
+          cell.classList.add('has-note');
+          cell.title = state.dayNotes[key];
+        }
+        if (state.bookmarks[key]) {
+          const dot = document.createElement('span');
+          dot.className = 'bookmark-dot'; dot.textContent = '📌';
+          cell.appendChild(dot);
+        }
+        const noteIcon = document.createElement('span');
+        noteIcon.className = 'note-icon';
+        noteIcon.textContent = state.dayNotes[key] ? '📝' : '✏️';
+        noteIcon.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          openNoteModal(key, MONTH_NAMES[month] + ' ' + dnum);
+        });
+        cell.appendChild(noteIcon);
+
+        cell.addEventListener('click', () => {
+          if (state.bookmarks[key]) delete state.bookmarks[key];
+          else state.bookmarks[key] = true;
+          saveState();
+          renderCalendar();
+        });
+
+        grid.appendChild(cell);
+      }
+
+      monthEl.appendChild(grid);
+      wrap.appendChild(monthEl);
+    }
+  }
+
+  loadState();
+  renderCalendar();
+})();
+</script>
+
+</body>
+</html>
