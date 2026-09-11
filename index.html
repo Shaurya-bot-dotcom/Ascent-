@@ -6,6 +6,7 @@
 <title>Ascent — JEE / CET Prep Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg: #0F1320;
@@ -628,6 +629,16 @@
   <!-- ===================== SCRIPT ===================== -->
 
 <script>
+
+const SUPABASE_URL = 'https://rndlxbrbxdlkoytprkov.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Fe1ZQlQxd3XPRz-2ldyGww_mfSB6Wdi';
+  
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+  
 (function(){
   const STORAGE_KEY = 'ascent-tracker-state';
   const POINTS = { question: 2, mockTest: 300, mockAnalysis: 500, lecturePerHour: 50, studyPerMinute: 1 };
@@ -1615,6 +1626,8 @@
   })();
 
 })();
+console.log("Supabase connected:", !!supabaseClient);
+  
 </script>
 
 </body>
