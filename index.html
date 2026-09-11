@@ -352,10 +352,101 @@
   .stuck-response ul{ margin: 8px 0 0; padding-left: 20px; }
 
   footer.foot{ text-align:center; color: var(--text-muted); font-size: 12px; margin-top: 28px; }
+
+/* ---------- AUTH SCREEN ---------- */
+#authScreen{
+  position:fixed;
+  inset:0;
+  background:var(--bg);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+  padding:20px;
+}
+
+.auth-box{
+  width:100%;
+  max-width:400px;
+  background:var(--panel);
+  border:1px solid var(--panel-border);
+  border-radius:var(--radius-md);
+  padding:28px;
+  box-shadow:var(--shadow);
+}
+
+.auth-box h2{
+  margin:0 0 6px;
+  font-size:24px;
+}
+
+.auth-box p{
+  color:var(--text-muted);
+  font-size:13px;
+  margin:0 0 20px;
+}
+
+.auth-box input{
+  width:100%;
+  background:var(--bg);
+  border:1px solid var(--panel-border);
+  color:var(--text);
+  border-radius:8px;
+  padding:11px;
+  font-size:14px;
+  font-family:inherit;
+  margin-bottom:12px;
+}
+
+.auth-buttons{
+  display:flex;
+  gap:8px;
+}
+
+.auth-buttons button{
+  flex:1;
+}
+
+.auth-message{
+  margin-top:12px;
+  font-size:12px;
+  color:var(--text-muted);
+  min-height:18px;
+}
+   /* ---------- auth tab end tab ---------- */
 </style>
 </head>
 <body>
+ <!-- ===================== authentication TAB ===================== -->
+<div id="authScreen">
+  <div class="auth-box">
+    <h2>Ascent</h2>
+    <p>Sign in to save your JEE / CET progress.</p>
 
+    <input
+      type="email"
+      id="authEmail"
+      placeholder="Email"
+      autocomplete="email"
+    >
+
+    <input
+      type="password"
+      id="authPassword"
+      placeholder="Password"
+      autocomplete="current-password"
+    >
+
+    <div class="auth-buttons">
+      <button class="primary" id="loginBtn">Log In</button>
+      <button class="primary" id="signupBtn">Sign Up</button>
+    </div>
+
+    <div class="auth-message" id="authMessage"></div>
+  </div>
+</div>
+ <!-- ===================== authentication TAB ===================== -->
+  
 <div class="app">
 
   <header class="top">
@@ -638,6 +729,63 @@ const supabaseClient = window.supabase.createClient(
   SUPABASE_KEY
 );
 
+  // ================= AUTH =================
+
+const authScreen = document.getElementById('authScreen');
+const authEmail = document.getElementById('authEmail');
+const authPassword = document.getElementById('authPassword');
+const authMessage = document.getElementById('authMessage');
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const email = authEmail.value.trim();
+  const password = authPassword.value;
+
+  if (!email || !password) {
+    authMessage.textContent = 'Enter your email and password.';
+    return;
+  }
+
+  authMessage.textContent = 'Logging in...';
+
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    authMessage.textContent = error.message;
+    return;
+  }
+
+  authMessage.textContent = 'Logged in!';
+  authScreen.style.display = 'none';
+});
+
+document.getElementById('signupBtn').addEventListener('click', async () => {
+  const email = authEmail.value.trim();
+  const password = authPassword.value;
+
+  if (!email || !password) {
+    authMessage.textContent = 'Enter an email and password.';
+    return;
+  }
+
+  authMessage.textContent = 'Creating account...';
+
+  const { error } = await supabaseClient.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) {
+    authMessage.textContent = error.message;
+    return;
+  }
+
+  authMessage.textContent =
+    'Account created! Check your email if confirmation is required.';
+});
+  // ================= AUTH =================
   
 (function(){
   const STORAGE_KEY = 'ascent-tracker-state';
@@ -742,18 +890,71 @@ const supabaseClient = window.supabase.createClient(
       });
     });
   }
+ // ================= storage vishay =================
+async function loadState(){
+  try{
+    const { data: { user } } = await supabaseClient.auth.getUser();
 
-  async function loadState(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) state = Object.assign(state, JSON.parse(raw));
-    }catch(e){ console.log('No existing state found, starting fresh.'); }
+    if (!user) {
+      console.log('No logged-in user.');
+      return;
+    }
+
+    const { data, error } = await supabaseClient
+      .from('user_progress')
+      .select('progress')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Could not load cloud progress:', error);
+      return;
+    }
+
+    if (data && data.progress) {
+      state = Object.assign(state, data.progress);
+      console.log('Cloud progress loaded.');
+    } else {
+      console.log('No cloud progress yet. Starting fresh.');
+    }
+
+  } catch(e) {
+    console.error('Could not load progress:', e);
   }
+}
+
+   // ================= storage vishay =================
+
+     // ================= storage vishay again =================
   async function saveState(){
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    catch(e){ console.error('Could not save progress:', e); }
-  }
+  try{
+    const { data: { user } } = await supabaseClient.auth.getUser();
 
+    if (!user) {
+      console.log('No logged-in user. Progress not saved.');
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from('user_progress')
+      .upsert({
+        user_id: user.id,
+        progress: state
+      }, {
+        onConflict: 'user_id'
+      });
+
+    if (error) {
+      console.error('Could not save cloud progress:', error);
+      return;
+    }
+
+    console.log('Cloud progress saved.');
+  } catch(e) {
+    console.error('Could not save progress:', e);
+  }
+}
+// ================= storage vishay again =================
   function getDay(key){
     if (!state.days[key]) state.days[key] = { tasks: [], studySessions: [], mocks: [] };
     if (!state.days[key].studySessions) state.days[key].studySessions = [];
