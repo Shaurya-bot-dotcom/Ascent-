@@ -437,6 +437,16 @@
 .logout-btn:active{
   transform:scale(0.97);
 }
+
+  .user-email{
+  align-self:center;
+  color:var(--text-muted);
+  font-size:12px;
+  max-width:180px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
    /* ---------- auth tab end tab ---------- */
 </style>
 </head>
@@ -486,7 +496,7 @@
 <!-- ===================== countdown TAB nd logout button ===================== -->
     <a href="countdown.html" style="align-self:center;color:var(--gold);font-size:13px;text-decoration:none;border:1px solid var(--panel-border);padding:8px 14px;border-radius:9px;white-space:nowrap;">📅 Countdown calendar →</a>
  
-    
+    <span id="userEmail" class="user-email"></span>
 <button id="logoutBtn" class="logout-btn">
   Log out
 </button>
@@ -762,7 +772,11 @@ const supabaseClient = window.supabase.createClient(
 
   if (session) {
     authScreen.style.display = 'none';
+const userEmail = document.getElementById('userEmail');
 
+if (userEmail && session.user) {
+  userEmail.textContent = session.user.email;
+}
     await loadState();
     await renderAll();
     renderChapters();
