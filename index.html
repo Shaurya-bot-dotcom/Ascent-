@@ -413,6 +413,30 @@
   color:var(--text-muted);
   min-height:18px;
 }
+
+  /* ---------- LOGOUT BUTTON ---------- */
+.logout-btn{
+  align-self:center;
+  background:transparent;
+  color:var(--text-muted);
+  border:1px solid var(--panel-border);
+  padding:8px 14px;
+  border-radius:9px;
+  font-size:13px;
+  font-family:inherit;
+  cursor:pointer;
+  transition:all 0.2s ease;
+}
+
+.logout-btn:hover{
+  color:var(--text);
+  border-color:var(--gold);
+  background:rgba(242,193,78,0.08);
+}
+
+.logout-btn:active{
+  transform:scale(0.97);
+}
    /* ---------- auth tab end tab ---------- */
 </style>
 </head>
@@ -463,10 +487,7 @@
     <a href="countdown.html" style="align-self:center;color:var(--gold);font-size:13px;text-decoration:none;border:1px solid var(--panel-border);padding:8px 14px;border-radius:9px;white-space:nowrap;">📅 Countdown calendar →</a>
  
     
-    <button
-  id="logoutBtn"
-  style="align-self:center;"
->
+<button id="logoutBtn" class="logout-btn">
   Log out
 </button>
     <!-- ===================== countdown TAB ===================== -->   
