@@ -459,9 +459,17 @@
       <div class="chip"><div class="n" id="cdCet">--</div><div class="l">days to CET</div></div>
       <div class="chip"><div class="n" id="cdJee">--</div><div class="l">days to JEE</div></div>
     </div>
-<!-- ===================== countdown TAB ===================== -->
+<!-- ===================== countdown TAB nd logout button ===================== -->
     <a href="countdown.html" style="align-self:center;color:var(--gold);font-size:13px;text-decoration:none;border:1px solid var(--panel-border);padding:8px 14px;border-radius:9px;white-space:nowrap;">📅 Countdown calendar →</a>
- <!-- ===================== countdown TAB ===================== -->   
+ 
+    
+    <button
+  id="logoutBtn"
+  style="align-self:center;"
+>
+  Log out
+</button>
+    <!-- ===================== countdown TAB ===================== -->   
   </header>
 
   <div class="stats-strip">
@@ -728,6 +736,33 @@ const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
+
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+
+  if (session) {
+    authScreen.style.display = 'none';
+
+    await loadState();
+    await renderAll();
+    renderChapters();
+    renderCountdowns();
+
+  } else {
+    authScreen.style.display = 'flex';
+  }
+
+});
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+  const { error } = await supabaseClient.auth.signOut();
+
+  if (error) {
+    console.error('Logout failed:', error);
+    return;
+  }
+
+  authScreen.style.display = 'flex';
+});
 
   // ================= AUTH =================
 
@@ -1816,15 +1851,26 @@ async function loadState(){
   }
 
   (async function init(){
-    await loadState();
-    ensureChapters();
-    updateFieldVisibility();
-    await renderAll();
-    renderChapters();
-    renderCountdowns();
-    maybeShowPlanModal();
-    maybeShowWeeklyModal();
-  })();
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+
+  if (!session) {
+    authScreen.style.display = 'flex';
+    return;
+  }
+
+  authScreen.style.display = 'none';
+
+  await loadState();
+  ensureChapters();
+  updateFieldVisibility();
+  await renderAll();
+  renderChapters();
+  renderCountdowns();
+  maybeShowPlanModal();
+  maybeShowWeeklyModal();
+
+})();
 
 })();
 console.log("Supabase connected:", !!supabaseClient);
