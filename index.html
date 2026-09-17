@@ -950,6 +950,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
     totalPoints: 0,
     longestStreak: 0,
     lastWeeklyPopupDate: null,
+    lastCarryForwardDate: null,
     days: {}, // dateKey -> { tasks:[], studySessions:[], mocks:[] }
     chapters: {} // subject -> [{ theory, notes, questionsSolved }] aligned by index to CHAPTER_LISTS
   };
@@ -1034,6 +1035,38 @@ async function loadState(){
     if (!state.days[key].studySessions) state.days[key].studySessions = [];
     if (!state.days[key].mocks) state.days[key].mocks = [];
     return state.days[key];
+  }
+
+   function carryForwardIncompleteTasks(){
+    if (state.lastCarryForwardDate === todayKey()) return; // already ran today
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yDay = getDay(todayKey(yesterday));
+
+    const incomplete = yDay.tasks.filter(t => !t.done);
+    yDay.tasks = yDay.tasks.filter(t => t.done); // remove the carried ones from yesterday
+
+        if (incomplete.length > 0) {
+      const today = getDay(todayKey());
+      incomplete.forEach(t => {
+        const baseLabel = t.label.replace(/ \(carried over.*\)$/, ''); // strip any existing tag first
+        const newPoints = Math.max(1, Math.floor(t.points / 2)); // never drops below 1 point
+        const timesCarried = (t.carryCount || 0) + 1;
+        today.tasks.push({
+          id: 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          type: t.type,
+          label: baseLabel + ' (carried over x' + timesCarried + ', ' + newPoints + ' pts)',
+          points: newPoints,
+          done: false,
+          subject: t.subject,
+          qty: t.qty,
+          carryCount: timesCarried
+        });
+      });
+    }
+
+    state.lastCarryForwardDate = todayKey();
   }
 
   function mockAllChecked(m){ return ANALYSIS_STEPS.every(s => m.analysis && m.analysis[s.key]); }
@@ -1901,6 +1934,7 @@ async function loadState(){
   authScreen.style.display = 'none';
 
   await loadState();
+  carryForwardIncompleteTasks();
   ensureChapters();
   updateFieldVisibility();
   await renderAll();
