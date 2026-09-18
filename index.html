@@ -597,10 +597,11 @@
         </div>
       </div>
 
-      <div class="panel">
+            <div class="panel">
         <h2>Today's list <span class="sub" id="todayDateLabel"></span></h2>
         <ul class="plain" id="todoList"></ul>
         <p class="empty-note" id="emptyNote">Nothing planned yet — add your first task for today.</p>
+        <button type="button" class="ctrlbtn" id="viewHistoryBtn" style="margin-top:10px;">📜 View History</button>
       </div>
 
       <div class="panel">
@@ -759,6 +760,15 @@
     <p>Here's how this week stacked up against last week.</p>
     <div class="week-compare" id="weeklyModalCompare"></div>
     <button class="primary" id="weeklyModalClose">Nice, continue</button>
+  </div>
+</div>
+
+  <div class="modal-overlay hidden" id="historyModal">
+  <div class="modal" style="max-width:520px;">
+    <h3>Completed task history</h3>
+    <p>Every task you've checked off, most recent day first.</p>
+    <div id="historyContent" style="max-height:400px; overflow-y:auto;"></div>
+    <button class="primary" id="historyModalClose" style="margin-top:14px;">Close</button>
   </div>
 </div>
 
@@ -1058,7 +1068,7 @@ async function loadState(){
         const baseLabel = t.label.replace(/ \(carried over.*\)$/, ''); // strip any existing tag first
         const newPoints = isDeduction ? t.points : Math.max(1, Math.floor(t.points / 2)); // deductions carry over unchanged, never flipped positive
         const timesCarried = (t.carryCount || 0) + 1;
-        today.tasks.push({
+          today.tasks.push({
           id: 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
           type: t.type,
           label: baseLabel + ' (carried over x' + timesCarried + ', ' + newPoints + ' pts)',
@@ -1066,6 +1076,7 @@ async function loadState(){
           done: false,
           subject: t.subject,
           qty: t.qty,
+          chapterIndex: t.chapterIndex !== undefined ? t.chapterIndex : null,
           carryCount: timesCarried
         });
       });
@@ -1251,6 +1262,35 @@ async function loadState(){
     document.getElementById(prefix + 'CountLbl').textContent = value + ' / ' + target;
     document.getElementById(prefix + 'Bar').style.width = Math.min(100, (value / target) * 100) + '%';
   }
+
+    function renderHistory(){
+    const content = document.getElementById('historyContent');
+    const dateKeys = Object.keys(state.days).sort((a,b) => (a < b ? 1 : -1)); // most recent day first
+    let html = '';
+    dateKeys.forEach(key => {
+      const day = state.days[key];
+      const doneTasks = day.tasks.filter(t => t.done);
+      if (doneTasks.length === 0) return;
+      html += '<div style="margin-bottom:16px;">';
+      html += '<div style="font-size:12.5px; color:var(--text-muted); font-weight:600; margin-bottom:6px;">' + key + '</div>';
+      doneTasks.forEach(t => {
+        html += '<div class="task-item done" style="margin-bottom:6px;">';
+        html += '<span class="task-label" style="text-decoration:line-through;">' + t.label + '</span>';
+        html += '<span class="task-pts">' + (t.points >= 0 ? '+' : '') + t.points + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    });
+    content.innerHTML = html || '<p class="empty-note">No completed tasks yet.</p>';
+  }
+
+  document.getElementById('viewHistoryBtn').addEventListener('click', () => {
+    renderHistory();
+    document.getElementById('historyModal').classList.remove('hidden');
+  });
+  document.getElementById('historyModalClose').addEventListener('click', () => {
+    document.getElementById('historyModal').classList.add('hidden');
+  });
 
   // ================= MOCK TESTS TAB =================
   const mockDateInput = document.getElementById('mockDate');
