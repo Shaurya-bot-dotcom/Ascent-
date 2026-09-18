@@ -558,15 +558,19 @@
         <h2>Add a task <span class="sub">— points on completion</span></h2>
         <form id="taskForm">
           <label for="taskType">Type</label>
-          <select id="taskType">
+                  <select id="taskType">
             <option value="physics">Physics questions</option>
             <option value="chem">Chemistry questions</option>
             <option value="maths">Maths questions</option>
             <option value="lecture">Lecture</option>
             <option value="custom">Custom</option>
+            <option value="social_media">Social media (1 hr) — -300 pts</option>
+            <option value="junk_food">Junk food — -50 pts</option>
           </select>
 
-          <div class="field-group active" data-for="physics chem maths">
+           <div class="field-group active" data-for="physics chem maths">
+            <label for="chapterSelect">Chapter</label>
+            <select id="chapterSelect"></select>
             <label for="qCount">Number of questions</label>
             <input type="number" id="qCount" min="1" value="10">
           </div>
@@ -863,7 +867,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
   
 (function(){
   const STORAGE_KEY = 'ascent-tracker-state';
-  const POINTS = { question: 2, mockTest: 300, mockAnalysis: 500, lecturePerHour: 50, studyPerMinute: 1 };
+  const POINTS = { question: 2, mockTest: 300, mockAnalysis: 500, lecturePerHour: 50, studyPerMinute: 1, socialMediaHour: -300, junkFood: -50 };
   const DAILY_SUBJECT_TARGET = 33;
   const BAD_DAY_SUBJECT_TARGET = 10;
   const WEEKLY_MOCK_TARGET = 4;
@@ -1123,28 +1127,43 @@ async function loadState(){
   }
 
   // ================= TODAY TAB =================
-  const taskType = document.getElementById('taskType');
+    const taskType = document.getElementById('taskType');
   const qCount = document.getElementById('qCount');
   const lecHours = document.getElementById('lecHours');
   const customLabel = document.getElementById('customLabel');
   const customPts = document.getElementById('customPts');
   const ptsPreview = document.getElementById('ptsPreview');
+  const chapterSelect = document.getElementById('chapterSelect');
   const fieldGroups = document.querySelectorAll('#tab-today .field-group');
 
-  function currentPoints(){
+  function populateChapterSelect(){
+    const subject = taskType.value;
+    if (!SUBJECTS.includes(subject)) return;
+    const names = CHAPTER_LISTS[subject] || [];
+    chapterSelect.innerHTML = names.map((name, i) => '<option value="' + i + '">' + name + '</option>').join('');
+  }
+
+    function currentPoints(){
     const type = taskType.value;
     if (SUBJECTS.includes(type)) return Math.max(0, parseInt(qCount.value || 0, 10)) * POINTS.question;
     if (type === 'lecture') return Math.max(0, parseFloat(lecHours.value || 0)) * POINTS.lecturePerHour;
     if (type === 'custom') return Math.max(0, parseInt(customPts.value || 0, 10));
+    if (type === 'social_media') return POINTS.socialMediaHour;
+    if (type === 'junk_food') return POINTS.junkFood;
     return 0;
   }
-  function currentLabel(){
+   function currentLabel(){
     const type = taskType.value;
-    if (type === 'physics') return qCount.value + ' physics questions';
-    if (type === 'chem') return qCount.value + ' chemistry questions';
-    if (type === 'maths') return qCount.value + ' maths questions';
+    if (SUBJECTS.includes(type)) {
+      const names = CHAPTER_LISTS[type] || [];
+      const chapterName = names[parseInt(chapterSelect.value || 0, 10)] || '';
+      const subjectLabel = type === 'physics' ? 'physics' : (type === 'chem' ? 'chemistry' : 'maths');
+      return qCount.value + ' ' + subjectLabel + ' questions — ' + chapterName;
+    }
     if (type === 'lecture') return lecHours.value + ' hr lecture';
     if (type === 'custom') return customLabel.value.trim() || 'Custom task';
+    if (type === 'social_media') return 'Used social media for 1 hr';
+    if (type === 'junk_food') return 'Ate junk food';
     return '';
   }
   function updateFieldVisibility(){
@@ -1153,27 +1172,35 @@ async function loadState(){
     ptsPreview.textContent = currentPoints();
   }
   [taskType, qCount, lecHours, customPts].forEach(el => { el.addEventListener('input', updateFieldVisibility); el.addEventListener('change', updateFieldVisibility); });
+  taskType.addEventListener('change', populateChapterSelect);
+  populateChapterSelect();
 
-  document.getElementById('taskForm').addEventListener('submit', async (e) => {
+    document.getElementById('taskForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const type = taskType.value;
     const points = currentPoints();
     const label = currentLabel();
-    if (points <= 0 || (type === 'custom' && !customLabel.value.trim())) return;
+    const isDeduction = (type === 'social_media' || type === 'junk_food');
+    if ((points === 0 && !isDeduction) || (type === 'custom' && !customLabel.value.trim())) return;
 
     const day = getDay(todayKey());
     day.tasks.push({
       id: 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
       type, label, points, done: false,
       subject: SUBJECTS.includes(type) ? type : null,
-      qty: SUBJECTS.includes(type) ? parseInt(qCount.value||0,10) : null
+      qty: SUBJECTS.includes(type) ? parseInt(qCount.value||0,10) : null,
+      chapterIndex: SUBJECTS.includes(type) ? parseInt(chapterSelect.value||0,10) : null
     });
     await saveState();
     renderAll();
     if (type === 'custom') customLabel.value = '';
   });
+    await saveState();
+    renderAll();
+    if (type === 'custom') customLabel.value = '';
+  });
 
-  function renderTodoList(){
+   function renderTodoList(){
     const day = getDay(todayKey());
     const list = document.getElementById('todoList');
     const emptyNote = document.getElementById('emptyNote');
@@ -1181,7 +1208,12 @@ async function loadState(){
     if (day.tasks.length === 0) { emptyNote.style.display = 'block'; return; }
     emptyNote.style.display = 'none';
 
-    day.tasks.forEach(t => {
+    const sortedTasks = [...day.tasks].sort((a, b) => {
+      if (a.done !== b.done) return a.done ? 1 : -1; // incomplete tasks first, done ones sink down
+      return b.points - a.points; // within each group, highest points first
+    });
+
+     sortedTasks.forEach(t => {
       const li = document.createElement('li');
       li.className = 'task-item' + (t.done ? ' done' : '');
 
@@ -1190,7 +1222,20 @@ async function loadState(){
       check.type = 'button';
       check.setAttribute('aria-label', t.done ? 'Mark as not done' : 'Mark as done');
       check.textContent = t.done ? '✓' : '';
-      check.addEventListener('click', async () => { t.done = !t.done; await saveState(); renderAll(); });
+            check.addEventListener('click', async () => {
+        t.done = !t.done;
+        if (t.subject && t.chapterIndex !== null && t.chapterIndex !== undefined) {
+          ensureChapters();
+          const chapterEntry = state.chapters[t.subject][t.chapterIndex];
+          if (chapterEntry) {
+            chapterEntry.questionsSolved += t.done ? (t.qty || 0) : -(t.qty || 0);
+            if (chapterEntry.questionsSolved < 0) chapterEntry.questionsSolved = 0;
+          }
+        }
+        await saveState();
+        renderAll();
+        renderChapters();
+      });
 
       const label = document.createElement('span');
       label.className = 'task-label'; label.textContent = t.label;
