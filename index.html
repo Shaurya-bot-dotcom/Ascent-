@@ -1051,11 +1051,12 @@ async function loadState(){
     const incomplete = yDay.tasks.filter(t => !t.done);
     yDay.tasks = yDay.tasks.filter(t => t.done); // remove the carried ones from yesterday
 
-        if (incomplete.length > 0) {
+           if (incomplete.length > 0) {
       const today = getDay(todayKey());
       incomplete.forEach(t => {
+        const isDeduction = (t.type === 'social_media' || t.type === 'junk_food');
         const baseLabel = t.label.replace(/ \(carried over.*\)$/, ''); // strip any existing tag first
-        const newPoints = Math.max(1, Math.floor(t.points / 2)); // never drops below 1 point
+        const newPoints = isDeduction ? t.points : Math.max(1, Math.floor(t.points / 2)); // deductions carry over unchanged, never flipped positive
         const timesCarried = (t.carryCount || 0) + 1;
         today.tasks.push({
           id: 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
@@ -1195,11 +1196,7 @@ async function loadState(){
     renderAll();
     if (type === 'custom') customLabel.value = '';
   });
-    await saveState();
-    renderAll();
-    if (type === 'custom') customLabel.value = '';
-  });
-
+    
    function renderTodoList(){
     const day = getDay(todayKey());
     const list = document.getElementById('todoList');
@@ -1240,7 +1237,7 @@ async function loadState(){
       const label = document.createElement('span');
       label.className = 'task-label'; label.textContent = t.label;
       const pts = document.createElement('span');
-      pts.className = 'task-pts'; pts.textContent = '+' + t.points;
+      pts.className = 'task-pts'; pts.textContent = (t.points >= 0 ? '+' : '') + t.points;
       const del = document.createElement('button');
       del.className = 'task-del'; del.type = 'button'; del.setAttribute('aria-label','Delete task'); del.textContent = '✕';
       del.addEventListener('click', async () => { day.tasks = day.tasks.filter(x => x.id !== t.id); await saveState(); renderAll(); });
