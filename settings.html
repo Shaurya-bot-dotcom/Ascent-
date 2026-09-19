@@ -179,7 +179,7 @@
 
  async function saveFullState(){
 
-  if (!fullState || !currentUser) {
+  if (!fullState || !currentUser || !stateLoadedSuccessfully) {
     console.error('Save blocked: state was not loaded.');
     return;
   }
