@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — Ascent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg: #0F1320;
+    --bg-soft: #12172A;
+    --panel: #171C2C;
+    --panel-border: #262D42;
+    --text: #EDEEF3;
+    --text-muted: #8991A8;
+    --gold: #F2C14E;
+    --good: #6FCF97;
+    --danger: #E1637A;
+    --radius-md: 14px;
+    --shadow: 0 8px 24px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"]{
+    --bg: #F4F5FA;
+    --bg-soft: #FFFFFF;
+    --panel: #FFFFFF;
+    --panel-border: #DDE1EA;
+    --text: #1A1F2E;
+    --text-muted: #6B7280;
+    --shadow: 0 8px 24px rgba(0,0,0,0.08);
+  }
+  :root[data-theme="light"] body{
+    background: radial-gradient(circle at 15% 0%, #FFFFFF 0%, #F4F5FA 45%);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body{
+    background: radial-gradient(circle at 15% 0%, #161B30 0%, var(--bg) 45%);
+    color: var(--text); font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh; padding: 28px 20px 60px;
+  }
+  .app{ max-width: 640px; margin: 0 auto; }
+  h1{ font-family:'Space Grotesk',sans-serif; font-size: 26px; margin: 0 0 4px; }
+  p.tagline{ color: var(--text-muted); margin: 0 0 22px; font-size: 14px; }
+
+  .back-link{
+    display:inline-block; margin-bottom: 18px; color: var(--text-muted); font-size: 13px;
+    text-decoration: none; border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 8px;
+  }
+  .back-link:hover{ color: var(--gold); border-color: var(--gold); }
+
+  .panel{
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: var(--radius-md); padding: 20px; margin-bottom: 18px;
+  }
+  .panel h2{ font-family:'Space Grotesk',sans-serif; font-size: 16px; margin: 0 0 14px; }
+
+  .theme-toggle{ display:flex; gap: 10px; }
+  .theme-btn{
+    flex:1; padding: 14px; border-radius: 10px; border: 2px solid var(--panel-border);
+    background: var(--bg-soft); color: var(--text); font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit; text-align:center;
+  }
+  .theme-btn.active{ border-color: var(--gold); color: var(--gold); }
+
+  label{ display:block; font-size: 12.5px; color: var(--text-muted); margin-bottom: 5px; }
+  input[type=text], input[type=number]{
+    width: 100%; background: var(--bg); border: 1px solid var(--panel-border);
+    color: var(--text); border-radius: 8px; padding: 9px 10px; font-size: 14px;
+    font-family: inherit; margin-bottom: 12px;
+  }
+  .row2{ display:grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+  button.primary{
+    width:100%; background: var(--gold); color: #1A1408; border:none;
+    padding: 10px 14px; border-radius: 8px; font-weight: 600; font-size: 14px;
+    cursor:pointer; font-family: inherit;
+  }
+
+  ul.plain{ list-style:none; margin: 14px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .ptask-item{
+    display:flex; align-items:center; gap: 10px;
+    background: var(--bg-soft); border: 1px solid var(--panel-border);
+    border-radius: 9px; padding: 9px 10px;
+  }
+  .ptask-label{ flex:1; font-size: 13.5px; }
+  .ptask-pts{ font-size: 12.5px; color: var(--gold); font-weight: 600; white-space:nowrap; }
+  .ptask-del{ background:none; border:none; color: var(--text-muted); cursor:pointer; font-size: 15px; padding: 2px 4px; }
+  .ptask-del:hover{ color: var(--danger); }
+  .empty-note{ color: var(--text-muted); font-size: 13px; padding: 6px 2px; }
+
+  .status-msg{ font-size: 12.5px; color: var(--text-muted); margin-top: 10px; min-height: 16px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <a class="back-link" href="jee-prep-tracker.html">← Back to tracker</a>
+  <h1>Settings</h1>
+  <p class="tagline">Changes save automatically and sync to your account.</p>
+
+  <div id="notLoggedIn" class="panel" style="display:none;">
+    <p>You're not logged in. <a href="jee-prep-tracker.html" style="color:var(--gold);">Go to the tracker</a> and log in first, then come back here.</p>
+  </div>
+
+  <div id="settingsBody" style="display:none;">
+    <div class="panel">
+      <h2>Appearance</h2>
+      <div class="theme-toggle">
+        <button type="button" class="theme-btn" id="darkBtn">🌙 Night mode</button>
+        <button type="button" class="theme-btn" id="lightBtn">☀️ Day mode</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Permanent daily tasks</h2>
+      <p style="color:var(--text-muted); font-size:12.5px; margin:-6px 0 14px;">These show up automatically in Today's list every day — good for habits like brushing, gym, or diet.</p>
+      <div class="row2">
+        <div><label for="ptaskLabel">Task name</label><input type="text" id="ptaskLabel" placeholder="e.g. Gym"></div>
+        <div><label for="ptaskPts">Points</label><input type="number" id="ptaskPts" min="1" value="20"></div>
+      </div>
+      <button type="button" class="primary" id="addPtaskBtn">Add permanent task</button>
+
+      <ul class="plain" id="ptaskList"></ul>
+      <p class="empty-note" id="ptaskEmpty" style="display:none;">No permanent tasks yet.</p>
+    </div>
+
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const SUPABASE_URL = 'https://rndlxbrbxdlkoytprkov.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Fe1ZQlQxd3XPRz-2ldyGww_mfSB6Wdi';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let fullState = null; // the ENTIRE tracker state, loaded wholesale so saving never wipes other data
+  let currentUser = null;
+
+  function ensureSettings(){
+    if (!fullState.settings) fullState.settings = { theme: 'dark', permanentTasks: [] };
+    if (!fullState.settings.permanentTasks) fullState.settings.permanentTasks = [];
+    if (!fullState.settings.theme) fullState.settings.theme = 'dark';
+  }
+
+  function applyThemeToPage(){
+    document.documentElement.setAttribute('data-theme', fullState.settings.theme === 'light' ? 'light' : 'dark');
+    document.getElementById('darkBtn').classList.toggle('active', fullState.settings.theme !== 'light');
+    document.getElementById('lightBtn').classList.toggle('active', fullState.settings.theme === 'light');
+  }
+
+  function renderPtasks(){
+    const list = document.getElementById('ptaskList');
+    const empty = document.getElementById('ptaskEmpty');
+    list.innerHTML = '';
+    const tasks = fullState.settings.permanentTasks;
+    if (tasks.length === 0) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    tasks.forEach(pt => {
+      const li = document.createElement('li');
+      li.className = 'ptask-item';
+      const label = document.createElement('span');
+      label.className = 'ptask-label'; label.textContent = pt.label;
+      const pts = document.createElement('span');
+      pts.className = 'ptask-pts'; pts.textContent = '+' + pt.points;
+      const del = document.createElement('button');
+      del.className = 'ptask-del'; del.type = 'button'; del.textContent = '✕';
+      del.addEventListener('click', async () => {
+        fullState.settings.permanentTasks = fullState.settings.permanentTasks.filter(x => x.id !== pt.id);
+        await saveFullState();
+        renderPtasks();
+      });
+      li.appendChild(label); li.appendChild(pts); li.appendChild(del);
+      list.appendChild(li);
+    });
+  }
+
+  async function saveFullState(){
+    const status = document.getElementById('statusMsg');
+    status.textContent = 'Saving...';
+    try{
+      const { error } = await supabaseClient
+        .from('user_progress')
+        .upsert({ user_id: currentUser.id, progress: fullState }, { onConflict: 'user_id' });
+      if (error) { status.textContent = 'Could not save: ' + error.message; return; }
+      status.textContent = 'Saved ✓';
+      setTimeout(() => { status.textContent = ''; }, 1500);
+    }catch(e){
+      status.textContent = 'Could not save.';
+      console.error(e);
+    }
+  }
+
+  document.getElementById('darkBtn').addEventListener('click', async () => {
+    fullState.settings.theme = 'dark';
+    applyThemeToPage();
+    await saveFullState();
+  });
+  document.getElementById('lightBtn').addEventListener('click', async () => {
+    fullState.settings.theme = 'light';
+    applyThemeToPage();
+    await saveFullState();
+  });
+
+  document.getElementById('addPtaskBtn').addEventListener('click', async () => {
+    const labelInput = document.getElementById('ptaskLabel');
+    const ptsInput = document.getElementById('ptaskPts');
+    const label = labelInput.value.trim();
+    const points = Math.max(1, parseInt(ptsInput.value || 0, 10));
+    if (!label) return;
+    fullState.settings.permanentTasks.push({
+      id: 'ptask_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      label, points
+    });
+    labelInput.value = '';
+    await saveFullState();
+    renderPtasks();
+  });
+
+  (async function init(){
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      document.getElementById('notLoggedIn').style.display = 'block';
+      return;
+    }
+    currentUser = session.user;
+
+    const { data, error } = await supabaseClient
+      .from('user_progress')
+      .select('progress')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+
+    fullState = (data && data.progress) ? data.progress : {};
+    ensureSettings();
+    applyThemeToPage();
+    renderPtasks();
+    document.getElementById('settingsBody').style.display = 'block';
+  })();
+})();
+</script>
+
+</body>
+</html>
