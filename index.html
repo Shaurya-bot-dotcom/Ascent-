@@ -28,6 +28,20 @@
     --shadow: 0 8px 24px rgba(0,0,0,0.35);
   }
 
+    :root[data-theme="light"]{
+    --bg: #F4F5FA;
+    --bg-soft: #FFFFFF;
+    --panel: #FFFFFF;
+    --panel-border: #DDE1EA;
+    --track-line: #E4E7F0;
+    --text: #1A1F2E;
+    --text-muted: #6B7280;
+    --shadow: 0 8px 24px rgba(0,0,0,0.08);
+  }
+  :root[data-theme="light"] body{
+    background: radial-gradient(circle at 15% 0%, #FFFFFF 0%, #F4F5FA 45%);
+  }
+
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; }
 
@@ -500,7 +514,8 @@
 <!-- ===================== countdown TAB nd logout button ===================== -->
     <a href="countdown.html" style="align-self:center;color:var(--gold);font-size:13px;text-decoration:none;border:1px solid var(--panel-border);padding:8px 14px;border-radius:9px;white-space:nowrap;">📅 Countdown calendar →</a>
  
-    <span id="userEmail" class="user-email"></span>
+       <span id="userEmail" class="user-email"></span>
+<a href="settings.html" class="logout-btn" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; font-size:16px;" title="Settings">⚙️</a>
 <button id="logoutBtn" class="logout-btn">
   Log out
 </button>
@@ -786,20 +801,18 @@ const supabaseClient = window.supabase.createClient(
   SUPABASE_KEY
 );
 
-  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+   supabaseClient.auth.onAuthStateChange(async (event, session) => {
+
+  const userEmail = document.getElementById('userEmail');
 
   if (session) {
     authScreen.style.display = 'none';
-const userEmail = document.getElementById('userEmail');
-
-if (userEmail && session.user) {
-  userEmail.textContent = session.user.email;
-}
-    await loadState();
-    await renderAll();
-    renderChapters();
-    renderCountdowns();
-
+    if (userEmail && session.user) {
+      userEmail.textContent = session.user.email;
+    }
+    if (event === 'SIGNED_IN') {
+      location.reload(); // cleanly re-runs the page's own init() with the new session
+    }
   } else {
     authScreen.style.display = 'flex';
   }
@@ -966,7 +979,8 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
     lastWeeklyPopupDate: null,
     lastCarryForwardDate: null,
     days: {}, // dateKey -> { tasks:[], studySessions:[], mocks:[] }
-    chapters: {} // subject -> [{ theory, notes, questionsSolved }] aligned by index to CHAPTER_LISTS
+    chapters: {}, // subject -> [{ theory, notes, questionsSolved }] aligned by index to CHAPTER_LISTS
+    settings: { theme: 'dark', permanentTasks: [] } // permanentTasks: [{ id, label, points }]
   };
 
   function ensureChapters(){
@@ -977,6 +991,35 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
           state.chapters[subject][i] = { theory: 'not_started', notes: 'not_started', questionsSolved: 0 };
         }
       });
+    });
+  }
+
+    function ensureSettings(){
+    if (!state.settings) state.settings = { theme: 'dark', permanentTasks: [] };
+    if (!state.settings.permanentTasks) state.settings.permanentTasks = [];
+    if (!state.settings.theme) state.settings.theme = 'dark';
+  }
+
+  function applyTheme(){
+    document.documentElement.setAttribute('data-theme', state.settings.theme === 'light' ? 'light' : 'dark');
+  }
+
+  function applyPermanentTasks(){
+    const day = getDay(todayKey());
+    state.settings.permanentTasks.forEach(pt => {
+      const alreadyThere = day.tasks.some(t => t.permanentId === pt.id);
+      if (!alreadyThere) {
+        day.tasks.push({
+          id: 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          type: 'permanent',
+          label: pt.label,
+          points: pt.points,
+          done: false,
+          subject: null,
+          qty: null,
+          permanentId: pt.id
+        });
+      }
     });
   }
  // ================= storage vishay =================
@@ -2004,28 +2047,23 @@ async function loadState(){
     await saveState();
   }
 
-  (async function init(){
-
-  const { data: { session } } = await supabaseClient.auth.getSession();
-
-  if (!session) {
-    authScreen.style.display = 'flex';
-    return;
-  }
-
-  authScreen.style.display = 'none';
-
-  await loadState();
-  carryForwardIncompleteTasks();
-  ensureChapters();
-  updateFieldVisibility();
-  await renderAll();
-  renderChapters();
-  renderCountdowns();
-  maybeShowPlanModal();
-  maybeShowWeeklyModal();
-
-})();
+   (async function init(){
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) { authScreen.style.display = 'flex'; return; }
+    authScreen.style.display = 'none';
+    await loadState();
+    ensureSettings();
+    applyTheme();
+    carryForwardIncompleteTasks();
+    ensureChapters();
+    applyPermanentTasks();
+    updateFieldVisibility();
+    await renderAll();
+    renderChapters();
+    renderCountdowns();
+    maybeShowPlanModal();
+    maybeShowWeeklyModal();
+  })();
 
 })();
 console.log("Supabase connected:", !!supabaseClient);
