@@ -970,7 +970,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
     const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return Math.round((d - a) / 86400000);
   }
-
+let stateLoadedSuccessfully = false;
   let state = {
     goalPoints: 99000,
     totalPoints: 0,
@@ -1042,10 +1042,12 @@ async function loadState(){
       return;
     }
 
-    if (data && data.progress) {
-      state = Object.assign(state, data.progress);
-      console.log('Cloud progress loaded.');
-    } else {
+   if (data && data.progress) {
+  state = Object.assign(state, data.progress);
+  stateLoadedSuccessfully = true;
+  console.log('Cloud progress loaded.');
+}
+   else {
       console.log('No cloud progress yet. Starting fresh.');
     }
 
@@ -1057,7 +1059,13 @@ async function loadState(){
    // ================= storage vishay =================
 
      // ================= storage vishay again =================
-  async function saveState(){
+ async function saveState(){
+
+  if (!stateLoadedSuccessfully) {
+    console.error('Save blocked: cloud state was not loaded safely.');
+    return;
+  }
+
   try{
     const { data: { user } } = await supabaseClient.auth.getUser();
 
