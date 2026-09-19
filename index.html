@@ -806,12 +806,14 @@ const supabaseClient = window.supabase.createClient(
   const userEmail = document.getElementById('userEmail');
 
   if (session) {
+    window.ascentCurrentUser = session.user; // hand the already-confirmed user straight through, no re-fetching
     authScreen.style.display = 'none';
     if (userEmail && session.user) {
       userEmail.textContent = session.user.email;
     }
     if (window.ascentRunFullInit) await window.ascentRunFullInit();
   } else {
+    window.ascentCurrentUser = null;
     authScreen.style.display = 'flex';
     if (window.ascentResetInit) window.ascentResetInit();
   }
@@ -1025,7 +1027,7 @@ let stateLoadedSuccessfully = false;
  // ================= storage vishay =================
 async function loadState(){
   try{
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const user = window.ascentCurrentUser;
 
     if (!user) {
       console.log('No logged-in user.');
@@ -1060,21 +1062,21 @@ async function loadState(){
    // ================= storage vishay =================
 
      // ================= storage vishay again =================
- async function saveState(){
+async function saveState(){
 
   if (!stateLoadedSuccessfully) {
     console.error('Save blocked: cloud state was not loaded safely.');
     return;
   }
 
+  const user = window.ascentCurrentUser;
+
+  if (!user) {
+    console.log('No logged-in user. Progress not saved.');
+    return;
+  }
+
   try{
-    const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) {
-      console.log('No logged-in user. Progress not saved.');
-      return;
-    }
-
     const { error } = await supabaseClient
       .from('user_progress')
       .upsert({
