@@ -801,7 +801,7 @@ const supabaseClient = window.supabase.createClient(
   SUPABASE_KEY
 );
 
-   supabaseClient.auth.onAuthStateChange(async (event, session) => {
+     supabaseClient.auth.onAuthStateChange(async (event, session) => {
 
   const userEmail = document.getElementById('userEmail');
 
@@ -810,11 +810,10 @@ const supabaseClient = window.supabase.createClient(
     if (userEmail && session.user) {
       userEmail.textContent = session.user.email;
     }
-    if (event === 'SIGNED_IN') {
-      location.reload(); // cleanly re-runs the page's own init() with the new session
-    }
+    if (window.ascentRunFullInit) await window.ascentRunFullInit();
   } else {
     authScreen.style.display = 'flex';
+    if (window.ascentResetInit) window.ascentResetInit();
   }
 
 });
@@ -2047,9 +2046,11 @@ async function loadState(){
     await saveState();
   }
 
-   (async function init(){
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (!session) { authScreen.style.display = 'flex'; return; }
+     let ascentInitialized = false;
+
+  window.ascentRunFullInit = async function(){
+    if (ascentInitialized) return; // avoid running twice if auth fires more than once
+    ascentInitialized = true;
     authScreen.style.display = 'none';
     await loadState();
     ensureSettings();
@@ -2063,8 +2064,11 @@ async function loadState(){
     renderCountdowns();
     maybeShowPlanModal();
     maybeShowWeeklyModal();
-  })();
+  };
 
+  window.ascentResetInit = function(){
+    ascentInitialized = false; // lets a genuine fresh login re-load everything after logout
+  };
 })();
 console.log("Supabase connected:", !!supabaseClient);
   
