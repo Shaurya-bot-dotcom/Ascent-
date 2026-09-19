@@ -177,9 +177,15 @@
     });
   }
 
-  async function saveFullState(){
-    const status = document.getElementById('statusMsg');
-    status.textContent = 'Saving...';
+ async function saveFullState(){
+
+  if (!fullState || !currentUser) {
+    console.error('Save blocked: state was not loaded.');
+    return;
+  }
+
+  const status = document.getElementById('statusMsg');
+  status.textContent = 'Saving...';
     try{
       const { error } = await supabaseClient
         .from('user_progress')
@@ -228,16 +234,34 @@
     currentUser = session.user;
 
     const { data, error } = await supabaseClient
-      .from('user_progress')
-      .select('progress')
-      .eq('user_id', currentUser.id)
-      .maybeSingle();
+  .from('user_progress')
+  .select('progress')
+  .eq('user_id', currentUser.id)
+  .maybeSingle();
 
-    fullState = (data && data.progress) ? data.progress : {};
-    ensureSettings();
-    applyThemeToPage();
-    renderPtasks();
-    document.getElementById('settingsBody').style.display = 'block';
+if (error) {
+  console.error('Could not load cloud progress:', error);
+  document.getElementById('notLoggedIn').innerHTML =
+    '<p>Could not load your cloud progress. Your data was NOT changed. Please try again.</p>';
+  document.getElementById('notLoggedIn').style.display = 'block';
+  return;
+}
+
+if (!data || !data.progress) {
+  console.error('No cloud progress found — refusing to overwrite anything.');
+  document.getElementById('notLoggedIn').innerHTML =
+    '<p>No cloud progress was found. Your data was NOT changed.</p>';
+  document.getElementById('notLoggedIn').style.display = 'block';
+  return;
+}
+
+fullState = data.progress;
+stateLoadedSuccessfully = true;
+ensureSettings();
+applyThemeToPage();
+renderPtasks();
+document.getElementById('settingsBody').style.display = 'block';
+    
   })();
 })();
 </script>
