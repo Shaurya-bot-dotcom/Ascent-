@@ -971,6 +971,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
     return Math.round((d - a) / 86400000);
   }
 let stateLoadedSuccessfully = false;
+  window.debugState = () => state;
   let state = {
     goalPoints: 99000,
     totalPoints: 0,
