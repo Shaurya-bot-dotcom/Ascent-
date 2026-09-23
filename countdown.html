@@ -6,6 +6,7 @@
 <title>Countdown — JEE / CET</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg: #0F1320;
@@ -22,8 +23,6 @@
     color: var(--text); font-family: 'Inter', system-ui, sans-serif;
     min-height: 100vh; padding: 28px 20px 60px;
   }
-  h1{ font-family:'Space Grotesk',sans-serif; font-size: 24px; margin: 0 0 4px; }
-  p.tagline{ color: var(--text-muted); margin: 0 0 22px; font-size: 14px; }
   .app{ max-width: 760px; margin: 0 auto; }
 
   .back-link{
@@ -31,6 +30,14 @@
     text-decoration: none; border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 8px;
   }
   .back-link:hover{ color: var(--gold); border-color: var(--gold); }
+
+  h1{ font-family:'Space Grotesk',sans-serif; font-size: 24px; margin: 0 0 4px; }
+  p.tagline{ color: var(--text-muted); margin: 0 0 22px; font-size: 14px; }
+
+  #notLoggedIn{
+    background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px;
+    padding: 20px; margin-bottom: 18px;
+  }
 
   .calendar-month{
     background: var(--gold); border-radius: 14px; padding: 16px; margin-bottom: 18px; color: #1A1408;
@@ -59,8 +66,9 @@
   .modal h3{ margin: 0 0 12px; font-size: 16px; font-family:'Space Grotesk',sans-serif; }
   .modal textarea{
     width:100%; background: var(--bg); border: 1px solid var(--panel-border); color: var(--text);
-    border-radius: 8px; padding: 10px; font-family: inherit; font-size: 14px; resize: vertical; margin-bottom: 14px;
+    border-radius: 8px; padding: 10px; font-family: inherit; font-size: 14px; resize: vertical; margin-bottom: 8px;
   }
+  .modal .hint{ font-size: 11.5px; color: var(--text-muted); margin: 0 0 14px; }
   .modal-btns{ display:flex; gap: 8px; }
   .modal-btns button{
     flex:1; border:none; border-radius: 8px; padding: 9px 12px; font-size: 13.5px; font-weight: 600;
@@ -68,6 +76,8 @@
   }
   .btn-save{ background: var(--gold); color: #1A1408; }
   .btn-plain{ background: var(--panel-border); color: var(--text); }
+
+  .status-msg{ font-size: 12.5px; color: var(--text-muted); margin-top: 4px; min-height: 16px; }
 
   footer.foot{ text-align:center; color: var(--text-muted); font-size: 12px; margin-top: 28px; }
 </style>
@@ -77,19 +87,22 @@
 <div class="app">
   <a class="back-link" href="index.html">← Back to tracker</a>
   <h1>Countdown to New Year</h1>
-  <p class="tagline">Click a day to bookmark it. Click the pencil to add a note — hover a day to read it.</p>
+  <p class="tagline">Click a day to bookmark it. Click the pencil to add a note — it also becomes a reminder in the tracker's Notifications tab.</p>
+
+  <div id="notLoggedIn" style="display:none;">
+    <p>You're not logged in. <a href="index.html" style="color:var(--gold);">Go to the tracker</a> and log in first, then come back here.</p>
+  </div>
+
   <div id="countdownCalendars"></div>
-  <footer class="foot">Progress is saved automatically on this device.</footer>
+  <div class="status-msg" id="statusMsg"></div>
+  <footer class="foot">Progress syncs to your account automatically.</footer>
 </div>
-
-  <!-- ===================== COUNTDOWN TAB ===================== -->
-
-  <!-- ===================== CONTINUATION TAB ===================== -->
 
 <div class="modal-overlay hidden" id="noteModal">
   <div class="modal">
     <h3 id="noteModalTitle">Note</h3>
-    <textarea id="noteModalText" rows="4"></textarea>
+    <textarea id="noteModalText" rows="4" placeholder="e.g. Complete Electrostatics revision"></textarea>
+    <p class="hint">This also creates a reminder that will notify you in the tracker on this date.</p>
     <div class="modal-btns">
       <button class="btn-save" id="noteModalSave">Save</button>
       <button class="btn-plain" id="noteModalDelete">Delete</button>
@@ -100,33 +113,66 @@
 
 <script>
 (function(){
-  const STORAGE_KEY = 'ascent-countdown-state';
+  const SUPABASE_URL = 'https://rndlxbrbxdlkoytprkov.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_Fe1ZQlQxd3XPRz-2ldyGww_mfSB6Wdi';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
   const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-  let state = { bookmarks: {}, dayNotes: {} };
+  let fullState = null; // the ENTIRE shared tracker state, loaded wholesale so saving never wipes other data
+  let currentUser = null;
 
   function pad(n){ return String(n).padStart(2,'0'); }
   function todayKey(d){ d = d || new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
 
-  function loadState(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) state = Object.assign(state, JSON.parse(raw));
-    }catch(e){ console.log('No existing state found, starting fresh.'); }
-    if (!state.bookmarks) state.bookmarks = {};
-    if (!state.dayNotes) state.dayNotes = {};
+  function ensureCalendarFields(){
+    if (!fullState.calendarBookmarks) fullState.calendarBookmarks = {};
+    if (!fullState.calendarNotes) fullState.calendarNotes = {};
+    if (!fullState.reminders) fullState.reminders = [];
   }
-  function saveState(){
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-    catch(e){ console.error('Could not save progress:', e); }
+
+  // Creates a reminder the first time a date gets a note; updates the text if one already exists for that date.
+  function upsertReminderForDate(dateKey, text){
+    const existing = fullState.reminders.find(r => r.calendarDate === dateKey && r.status !== 'done');
+    if (existing) {
+      existing.text = text;
+    } else {
+      const [y, m, d] = dateKey.split('-').map(Number);
+      const dueDate = new Date(y, m - 1, d, 9, 0, 0); // default reminder time: 9:00 AM that day
+      fullState.reminders.push({
+        id: 'rem_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+        text: text,
+        calendarDate: dateKey,
+        dueAt: dueDate.toISOString(),
+        status: 'active', // 'active' | 'snoozed' | 'done'
+        snoozedUntil: null,
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
+  async function saveFullState(){
+    const status = document.getElementById('statusMsg');
+    status.textContent = 'Saving...';
+    try{
+      const { error } = await supabaseClient
+        .from('user_progress')
+        .upsert({ user_id: currentUser.id, progress: fullState }, { onConflict: 'user_id' });
+      if (error) { status.textContent = 'Could not save: ' + error.message; return; }
+      status.textContent = 'Saved ✓';
+      setTimeout(() => { status.textContent = ''; }, 1200);
+    }catch(e){
+      status.textContent = 'Could not save.';
+      console.error(e);
+    }
   }
 
   let currentNoteKey = null;
   function openNoteModal(key, label){
     currentNoteKey = key;
     document.getElementById('noteModalTitle').textContent = 'Note for ' + label;
-    document.getElementById('noteModalText').value = state.dayNotes[key] || '';
+    document.getElementById('noteModalText').value = fullState.calendarNotes[key] || '';
     document.getElementById('noteModal').classList.remove('hidden');
     setTimeout(() => document.getElementById('noteModalText').focus(), 50);
   }
@@ -135,19 +181,23 @@
     currentNoteKey = null;
   }
   document.getElementById('noteModalCancel').addEventListener('click', closeNoteModal);
-  document.getElementById('noteModalSave').addEventListener('click', () => {
+  document.getElementById('noteModalSave').addEventListener('click', async () => {
     if (!currentNoteKey) return;
     const val = document.getElementById('noteModalText').value.trim();
-    if (val === '') delete state.dayNotes[currentNoteKey];
-    else state.dayNotes[currentNoteKey] = val;
-    saveState();
+    if (val === '') {
+      delete fullState.calendarNotes[currentNoteKey];
+    } else {
+      fullState.calendarNotes[currentNoteKey] = val;
+      upsertReminderForDate(currentNoteKey, val);
+    }
+    await saveFullState();
     closeNoteModal();
     renderCalendar();
   });
-  document.getElementById('noteModalDelete').addEventListener('click', () => {
+  document.getElementById('noteModalDelete').addEventListener('click', async () => {
     if (!currentNoteKey) return;
-    delete state.dayNotes[currentNoteKey];
-    saveState();
+    delete fullState.calendarNotes[currentNoteKey];
+    await saveFullState();
     closeNoteModal();
     renderCalendar();
   });
@@ -195,28 +245,28 @@
         if (dateObj.getTime() === startOfToday.getTime()) cell.classList.add('today');
         cell.textContent = dnum;
 
-        if (state.dayNotes[key]) {
+        if (fullState.calendarNotes[key]) {
           cell.classList.add('has-note');
-          cell.title = state.dayNotes[key];
+          cell.title = fullState.calendarNotes[key];
         }
-        if (state.bookmarks[key]) {
+        if (fullState.calendarBookmarks[key]) {
           const dot = document.createElement('span');
           dot.className = 'bookmark-dot'; dot.textContent = '📌';
           cell.appendChild(dot);
         }
         const noteIcon = document.createElement('span');
         noteIcon.className = 'note-icon';
-        noteIcon.textContent = state.dayNotes[key] ? '📝' : '✏️';
+        noteIcon.textContent = fullState.calendarNotes[key] ? '📝' : '✏️';
         noteIcon.addEventListener('click', (ev) => {
           ev.stopPropagation();
           openNoteModal(key, MONTH_NAMES[month] + ' ' + dnum);
         });
         cell.appendChild(noteIcon);
 
-        cell.addEventListener('click', () => {
-          if (state.bookmarks[key]) delete state.bookmarks[key];
-          else state.bookmarks[key] = true;
-          saveState();
+        cell.addEventListener('click', async () => {
+          if (fullState.calendarBookmarks[key]) delete fullState.calendarBookmarks[key];
+          else fullState.calendarBookmarks[key] = true;
+          await saveFullState();
           renderCalendar();
         });
 
@@ -228,8 +278,24 @@
     }
   }
 
-  loadState();
-  renderCalendar();
+  (async function init(){
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      document.getElementById('notLoggedIn').style.display = 'block';
+      return;
+    }
+    currentUser = session.user;
+
+    const { data, error } = await supabaseClient
+      .from('user_progress')
+      .select('progress')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+
+    fullState = (data && data.progress) ? data.progress : {};
+    ensureCalendarFields();
+    renderCalendar();
+  })();
 })();
 </script>
 
