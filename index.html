@@ -514,7 +514,8 @@
 <!-- ===================== countdown TAB nd logout button ===================== -->
     <a href="countdown.html" style="align-self:center;color:var(--gold);font-size:13px;text-decoration:none;border:1px solid var(--panel-border);padding:8px 14px;border-radius:9px;white-space:nowrap;">📅 Countdown calendar →</a>
  
-       <span id="userEmail" class="user-email"></span>
+             <span id="userEmail" class="user-email"></span>
+<button type="button" id="notifBellBtn" class="logout-btn" style="font-size:16px;" title="Notifications">🔔</button>
 <a href="settings.html" class="logout-btn" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; font-size:16px;" title="Settings">⚙️</a>
 <button id="logoutBtn" class="logout-btn">
   Log out
@@ -565,6 +566,7 @@
     <button class="tabbtn" data-tab="chapters">Chapters</button>
     <button class="tabbtn" data-tab="motivation">Motivation</button>
     <button class="tabbtn" data-tab="notes">Notes</button>
+    <button class="tabbtn" data-tab="notifications">Notifications</button>
   </div>
 
   <!-- ===================== TODAY TAB ===================== -->
@@ -773,6 +775,26 @@
         <p class="empty-note" id="emptyNotesNote">No notes yet today.</p>
         <button type="button" class="ctrlbtn" id="viewNotesHistoryBtn" style="margin-top:10px;">📜 View History</button>
       </div>
+    </div>
+  </section>
+
+  
+  <!-- ===================== NOTIFICATIONS TAB ===================== -->
+  <section class="tabpanel" id="tab-notifications">
+    <div class="panel" style="margin-bottom:18px;">
+      <h2>Active <span class="sub" id="activeNotifCount"></span></h2>
+      <div id="activeNotifList"></div>
+      <p class="empty-note" id="emptyActiveNotif">Nothing due right now.</p>
+    </div>
+    <div class="panel" style="margin-bottom:18px;">
+      <h2>Snoozed</h2>
+      <div id="snoozedNotifList"></div>
+      <p class="empty-note" id="emptySnoozedNotif">Nothing snoozed.</p>
+    </div>
+    <div class="panel">
+      <h2>History</h2>
+      <div id="historyNotifList"></div>
+      <p class="empty-note" id="emptyHistoryNotif">No completed reminders yet.</p>
     </div>
   </section>
 
@@ -1010,7 +1032,8 @@ let stateLoadedSuccessfully = false;
     lastCarryForwardDate: null,
     days: {}, // dateKey -> { tasks:[], studySessions:[], mocks:[] }
     chapters: {}, // subject -> [{ theory, notes, questionsSolved }] aligned by index to CHAPTER_LISTS
-    settings: { theme: 'dark', permanentTasks: [] } // permanentTasks: [{ id, label, points }]
+    settings: { theme: 'dark', permanentTasks: [] }, // permanentTasks: [{ id, label, points }]
+    reminders: [] // [{ id, text, calendarDate, dueAt, status: 'active'|'snoozed'|'done', snoozedUntil }] — written by countdown.html, read here
   };
 
   function ensureChapters(){
@@ -1378,9 +1401,137 @@ async function saveState(){
 
 
   // ================= NOTES TAB =================
+   // ================= NOTES TAB =================
   function escapeHtml(str){
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
+
+  // ================= NOTIFICATIONS TAB =================
+  function ensureReminders(){
+    if (!state.reminders) state.reminders = [];
+  }
+
+  function classifyReminder(r){
+    const now = new Date();
+    if (r.status === 'done') return 'done';
+    if (r.status === 'snoozed' && r.snoozedUntil && new Date(r.snoozedUntil) > now) return 'snoozed';
+    if (new Date(r.dueAt) <= now) return 'active';
+    return 'upcoming'; // not yet due — stays invisible until its date arrives
+  }
+
+  function formatDT(iso){
+    return new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderBell(){
+    const btn = document.getElementById('notifBellBtn');
+    if (!btn) return;
+    ensureReminders();
+    const hasActive = state.reminders.some(r => classifyReminder(r) === 'active');
+    btn.textContent = hasActive ? '🔔❗' : '🔔';
+  }
+
+  async function snoozeReminderHours(r, hours){
+    r.status = 'snoozed';
+    r.snoozedUntil = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+    await saveState();
+    renderNotificationsTab();
+    renderBell();
+  }
+
+  function renderNotificationsTab(){
+    ensureReminders();
+
+    const active = state.reminders.filter(r => classifyReminder(r) === 'active').sort((a,b) => new Date(a.dueAt) - new Date(b.dueAt));
+    const snoozed = state.reminders.filter(r => classifyReminder(r) === 'snoozed').sort((a,b) => new Date(a.snoozedUntil) - new Date(b.snoozedUntil));
+    const done = state.reminders.filter(r => classifyReminder(r) === 'done').sort((a,b) => new Date(b.dueAt) - new Date(a.dueAt));
+
+    document.getElementById('activeNotifCount').textContent = active.length ? ('— ' + active.length) : '';
+
+    const activeList = document.getElementById('activeNotifList');
+    document.getElementById('emptyActiveNotif').style.display = active.length ? 'none' : 'block';
+    activeList.innerHTML = '';
+    active.forEach(r => {
+      const card = document.createElement('div');
+      card.className = 'mock-card';
+      card.innerHTML =
+        '<div class="mock-head"><div><div class="mock-title">' + escapeHtml(r.text) + '</div>' +
+        '<div class="mock-meta">Due ' + formatDT(r.dueAt) + '</div></div></div>';
+
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center;';
+
+      const doneBtn = document.createElement('button');
+      doneBtn.type = 'button'; doneBtn.className = 'ctrlbtn'; doneBtn.textContent = '✓ Done';
+      doneBtn.addEventListener('click', async () => {
+        r.status = 'done';
+        await saveState();
+        renderNotificationsTab();
+        renderBell();
+      });
+
+      const snooze1h = document.createElement('button');
+      snooze1h.type = 'button'; snooze1h.className = 'ctrlbtn'; snooze1h.textContent = '💤 1 hr';
+      snooze1h.addEventListener('click', () => snoozeReminderHours(r, 1));
+
+      const snooze3h = document.createElement('button');
+      snooze3h.type = 'button'; snooze3h.className = 'ctrlbtn'; snooze3h.textContent = '💤 3 hr';
+      snooze3h.addEventListener('click', () => snoozeReminderHours(r, 3));
+
+      const snoozeTom = document.createElement('button');
+      snoozeTom.type = 'button'; snoozeTom.className = 'ctrlbtn'; snoozeTom.textContent = '💤 Tomorrow';
+      snoozeTom.addEventListener('click', () => snoozeReminderHours(r, 24));
+
+      const customWrap = document.createElement('span');
+      customWrap.style.cssText = 'display:inline-flex; gap:6px; align-items:center;';
+      const customInput = document.createElement('input');
+      customInput.type = 'datetime-local';
+      customInput.style.cssText = 'padding:6px 8px; border-radius:7px; border:1px solid var(--panel-border); background:var(--bg); color:var(--text); font-size:12px; font-family:inherit;';
+      const customBtn = document.createElement('button');
+      customBtn.type = 'button'; customBtn.className = 'ctrlbtn'; customBtn.textContent = 'Snooze to...';
+      customBtn.addEventListener('click', async () => {
+        if (!customInput.value) return;
+        r.status = 'snoozed';
+        r.snoozedUntil = new Date(customInput.value).toISOString();
+        await saveState();
+        renderNotificationsTab();
+        renderBell();
+      });
+      customWrap.appendChild(customInput); customWrap.appendChild(customBtn);
+
+      btnRow.appendChild(doneBtn); btnRow.appendChild(snooze1h); btnRow.appendChild(snooze3h); btnRow.appendChild(snoozeTom); btnRow.appendChild(customWrap);
+      card.appendChild(btnRow);
+      activeList.appendChild(card);
+    });
+
+    const snoozedList = document.getElementById('snoozedNotifList');
+    document.getElementById('emptySnoozedNotif').style.display = snoozed.length ? 'none' : 'block';
+    snoozedList.innerHTML = '';
+    snoozed.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'task-item';
+      item.innerHTML = '<span class="task-label">' + escapeHtml(r.text) + '</span><span class="task-pts" style="color:var(--text-muted);">until ' + formatDT(r.snoozedUntil) + '</span>';
+      snoozedList.appendChild(item);
+    });
+
+    const historyList = document.getElementById('historyNotifList');
+    document.getElementById('emptyHistoryNotif').style.display = done.length ? 'none' : 'block';
+    historyList.innerHTML = '';
+    done.forEach(r => {
+      const item = document.createElement('div');
+      item.className = 'task-item done';
+      item.innerHTML = '<span class="task-label" style="text-decoration:line-through;">' + escapeHtml(r.text) + '</span><span class="task-pts" style="color:var(--text-muted);">' + formatDT(r.dueAt) + '</span>';
+      historyList.appendChild(item);
+    });
+  }
+
+  document.getElementById('notifBellBtn').addEventListener('click', () => {
+    document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.tabbtn[data-tab="notifications"]').classList.add('active');
+    document.getElementById('tab-notifications').classList.add('active');
+    renderNotificationsTab();
+  });
 
   function renderNotesToday(){
     const day = getDay(todayKey());
@@ -2165,9 +2316,11 @@ async function saveState(){
     const streak = renderStatsStrip(life);
     renderAchievements(Object.assign({ totalPoints: state.totalPoints, longestStreak: state.longestStreak }, life));
 
-       goalInput.value = state.goalPoints;
+        goalInput.value = state.goalPoints;
     renderMotivation();
     renderNotesToday();
+    renderNotificationsTab();
+    renderBell();
     await saveState();
   }
 
@@ -2179,6 +2332,7 @@ async function saveState(){
     authScreen.style.display = 'none';
     await loadState();
     ensureSettings();
+    ensureReminders();
     applyTheme();
     carryForwardIncompleteTasks();
     ensureChapters();
