@@ -514,9 +514,11 @@
 <!-- ===================== countdown TAB nd logout button ===================== -->
     <a href="countdown.html" style="align-self:center;color:var(--gold);font-size:13px;text-decoration:none;border:1px solid var(--panel-border);padding:8px 14px;border-radius:9px;white-space:nowrap;">📅 Countdown calendar →</a>
  
-             <span id="userEmail" class="user-email"></span>
-<button type="button" id="notifBellBtn" class="logout-btn" style="font-size:16px;" title="Notifications">🔔</button>
-<a href="settings.html" class="logout-btn" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; font-size:16px;" title="Settings">⚙️</a>
+                          <span id="userEmail" class="user-email"></span>
+<div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+  <a href="settings.html" class="logout-btn" style="text-decoration:none; display:inline-flex; align-items:center; justify-content:center; font-size:16px;" title="Settings">⚙️</a>
+  <button type="button" id="notifBellBtn" class="logout-btn" style="font-size:16px;" title="Notifications">🔔</button>
+</div>
 <button id="logoutBtn" class="logout-btn">
   Log out
 </button>
@@ -630,6 +632,12 @@
         <div class="stat-row"><div class="label"><span>Chemistry</span><span id="chemCountLbl">0 / 33</span></div><div class="bar chem"><i id="chemBar" style="width:0%"></i></div></div>
         <div class="stat-row"><div class="label"><span>Maths</span><span id="mathsCountLbl">0 / 33</span></div><div class="bar maths"><i id="mathsBar" style="width:0%"></i></div></div>
         <div class="stat-row"><div class="label"><span>Mock tests this week</span><span id="mockCountLbl">0 / 4</span></div><div class="bar mock"><i id="mockBar" style="width:0%"></i></div></div>
+
+        <div style="margin-top:16px; padding-top:14px; border-top:1px dashed var(--panel-border);">
+          <label for="whyIITInput">Why IIT? <span style="color:var(--text-muted); font-weight:400;">(permanent — never disappears)</span></label>
+          <textarea id="whyIITInput" rows="3" placeholder="Write why you're doing this. Read it back when it gets hard." style="width:100%; background:var(--bg); border:1px solid var(--panel-border); color:var(--text); border-radius:8px; padding:10px; font-size:13px; font-family:inherit; resize:vertical;"></textarea>
+          <button type="button" class="ctrlbtn" id="saveWhyIITBtn" style="margin-top:8px; width:100%;">Save</button>
+        </div>
       </div>
     </div>
   </section>
@@ -954,6 +962,8 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
     { key: 'concepts', label: 'Revised related concepts' }
   ];
 
+   const ACHIEVEMENT_COMPLETE_BONUS = 1000; // placeholder — tell me what you want this to be
+
   const ACHIEVEMENTS = [
     { id: 'streak3', icon: '🔥', name: '3-Day Spark', desc: '3 day activity streak', check: s => s.longestStreak >= 3 },
     { id: 'streak7', icon: '🔥', name: '7-Day Momentum', desc: '7 day activity streak', check: s => s.longestStreak >= 7 },
@@ -1032,8 +1042,11 @@ let stateLoadedSuccessfully = false;
     lastCarryForwardDate: null,
     days: {}, // dateKey -> { tasks:[], studySessions:[], mocks:[] }
     chapters: {}, // subject -> [{ theory, notes, questionsSolved }] aligned by index to CHAPTER_LISTS
-    settings: { theme: 'dark', permanentTasks: [] }, // permanentTasks: [{ id, label, points }]
-    reminders: [] // [{ id, text, calendarDate, dueAt, status: 'active'|'snoozed'|'done', snoozedUntil }] — written by countdown.html, read here
+           settings: { theme: 'dark', permanentTasks: [], excludePermanentFromCarryForward: true }, // permanentTasks: [{ id, label, points }]
+    reminders: [], // [{ id, text, calendarDate, dueAt, status: 'active'|'snoozed'|'done', snoozedUntil }] — written by countdown.html, read here
+        achievementBonusPoints: 0,
+    achievementBonusAwarded: false,
+    whyIIT: ''
   };
 
   function ensureChapters(){
@@ -1047,10 +1060,11 @@ let stateLoadedSuccessfully = false;
     });
   }
 
-    function ensureSettings(){
+       function ensureSettings(){
     if (!state.settings) state.settings = { theme: 'dark', permanentTasks: [] };
     if (!state.settings.permanentTasks) state.settings.permanentTasks = [];
     if (!state.settings.theme) state.settings.theme = 'dark';
+    if (typeof state.settings.excludePermanentFromCarryForward !== 'boolean') state.settings.excludePermanentFromCarryForward = true;
   }
 
   function applyTheme(){
@@ -1156,17 +1170,19 @@ async function saveState(){
     return state.days[key];
   }
 
-   function carryForwardIncompleteTasks(){
+      function carryForwardIncompleteTasks(){
     if (state.lastCarryForwardDate === todayKey()) return; // already ran today
 
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yDay = getDay(todayKey(yesterday));
 
-    const incomplete = yDay.tasks.filter(t => !t.done);
-    yDay.tasks = yDay.tasks.filter(t => t.done); // remove the carried ones from yesterday
+    const excludePermanent = state.settings && state.settings.excludePermanentFromCarryForward;
+    const incomplete = yDay.tasks.filter(t => !t.done && !(excludePermanent && t.type === 'permanent'));
+    yDay.tasks = yDay.tasks.filter(t => t.done || (excludePermanent && t.type === 'permanent')); // permanent tasks stay put, untouched — they're not carried, just left as-is since applyPermanentTasks() re-adds a fresh one today anyway
 
            if (incomplete.length > 0) {
+             
       const today = getDay(todayKey());
       incomplete.forEach(t => {
         const isDeduction = (t.type === 'social_media' || t.type === 'junk_food');
@@ -1200,10 +1216,22 @@ async function saveState(){
     return total;
   }
 
-  function recomputeTotalPoints(){
+   function recomputeTotalPoints(){
     let total = 0;
     Object.values(state.days).forEach(d => total += dayPoints(d));
+    total += (state.achievementBonusPoints || 0);
     state.totalPoints = total;
+  }
+
+  function checkAllAchievementsBonus(stats){
+    if (state.achievementBonusAwarded) return;
+    const allUnlocked = ACHIEVEMENTS.every(a => a.check(stats));
+    if (allUnlocked) {
+      state.achievementBonusAwarded = true;
+      state.achievementBonusPoints = (state.achievementBonusPoints || 0) + ACHIEVEMENT_COMPLETE_BONUS;
+      recomputeTotalPoints();
+      renderTrack();
+    }
   }
 
   function lifeStats(){
@@ -1402,9 +1430,24 @@ async function saveState(){
 
   // ================= NOTES TAB =================
    // ================= NOTES TAB =================
-  function escapeHtml(str){
+    function escapeHtml(str){
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
+
+  function ensureWhyIIT(){
+    if (typeof state.whyIIT !== 'string') state.whyIIT = '';
+  }
+
+  function renderWhyIIT(){
+    ensureWhyIIT();
+    const input = document.getElementById('whyIITInput');
+    if (document.activeElement !== input) input.value = state.whyIIT; // don't overwrite while the user is mid-typing
+  }
+
+  document.getElementById('saveWhyIITBtn').addEventListener('click', async () => {
+    state.whyIIT = document.getElementById('whyIITInput').value;
+    await saveState();
+  });
 
   // ================= NOTIFICATIONS TAB =================
   function ensureReminders(){
@@ -2311,19 +2354,21 @@ async function saveState(){
     document.getElementById('mockCountLbl').textContent = mockCount + ' / ' + WEEKLY_MOCK_TARGET;
     document.getElementById('mockBar').style.width = Math.min(100, (mockCount / WEEKLY_MOCK_TARGET) * 100) + '%';
 
-    renderTrack();
+      renderTrack();
     const life = lifeStats();
     const streak = renderStatsStrip(life);
-    renderAchievements(Object.assign({ totalPoints: state.totalPoints, longestStreak: state.longestStreak }, life));
+    const achievementStats = Object.assign({ totalPoints: state.totalPoints, longestStreak: state.longestStreak }, life);
+    renderAchievements(achievementStats);
+    checkAllAchievementsBonus(achievementStats);
 
-        goalInput.value = state.goalPoints;
+          goalInput.value = state.goalPoints;
     renderMotivation();
     renderNotesToday();
     renderNotificationsTab();
     renderBell();
+    renderWhyIIT();
     await saveState();
   }
-
      let ascentInitialized = false;
 
   window.ascentRunFullInit = async function(){
