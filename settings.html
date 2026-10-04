@@ -24,7 +24,7 @@
   :root[data-theme="light"]{
     --bg: #F4F5FA;
     --bg-soft: #FFFFFF;
-    --panel: #FFFFFF;
+    --: #FFFFFF;
     --panel-border: #DDE1EA;
     --text: #1A1F2E;
     --text-muted: #6B7280;
@@ -113,6 +113,18 @@
       </div>
     </div>
 
+<div class="panel">
+   <h2>Countdown Settings</h2>
+      <label for="academicYearSelect">Academic Year</label>
+      <select id="academicYearSelect">
+        <option value="12th">12th Standard (current targets)</option>
+        <option value="11th">11th Standard (JEE/CET shifted +1 year)</option>
+      </select>
+      <label for="syllabusDateInput" style="margin-top:10px;">Syllabus / custom target date</label>
+      <input type="date" id="syllabusDateInput">
+  
+</div>
+    
     <div class="panel">
       <h2>Permanent daily tasks</h2>
       <p style="color:var(--text-muted); font-size:12.5px; margin:-6px 0 14px;">These show up automatically in Today's list every day — good for habits like brushing, gym, or diet.</p>
@@ -143,8 +155,22 @@
     if (!fullState.settings) fullState.settings = { theme: 'dark', permanentTasks: [] };
     if (!fullState.settings.permanentTasks) fullState.settings.permanentTasks = [];
     if (!fullState.settings.theme) fullState.settings.theme = 'dark';
+      if (!fullState.settings.academicYear) fullState.settings.academicYear = '12th';
   }
 
+  function renderCountdownSettings(){
+    document.getElementById('academicYearSelect').value = fullState.settings.academicYear || '12th';
+    document.getElementById('syllabusDateInput').value = fullState.settings.syllabusTargetDate || '';
+  }
+  document.getElementById('academicYearSelect').addEventListener('change', async (e) => {
+    fullState.settings.academicYear = e.target.value;
+    await saveFullState();
+  });
+  document.getElementById('syllabusDateInput').addEventListener('change', async (e) => {
+    fullState.settings.syllabusTargetDate = e.target.value;
+    await saveFullState();
+  });
+  
   function applyThemeToPage(){
     document.documentElement.setAttribute('data-theme', fullState.settings.theme === 'light' ? 'light' : 'dark');
     document.getElementById('darkBtn').classList.toggle('active', fullState.settings.theme !== 'light');
@@ -259,6 +285,7 @@ fullState = data.progress;
 stateLoadedSuccessfully = true;
 ensureSettings();
 applyThemeToPage();
+renderCountdownSettings();
 renderPtasks();
 document.getElementById('settingsBody').style.display = 'block';
     
