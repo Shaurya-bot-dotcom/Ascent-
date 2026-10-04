@@ -1042,9 +1042,10 @@ let stateLoadedSuccessfully = false;
     lastCarryForwardDate: null,
     days: {}, // dateKey -> { tasks:[], studySessions:[], mocks:[] }
     chapters: {}, // subject -> [{ theory, notes, questionsSolved }] aligned by index to CHAPTER_LISTS
-           settings: { theme: 'dark', permanentTasks: [], excludePermanentFromCarryForward: true }, // permanentTasks: [{ id, label, points }]
+    settings: { theme: 'dark', permanentTasks: [], excludePermanentFromCarryForward: true }, // permanentTasks: [{ id, label, points }]
     reminders: [], // [{ id, text, calendarDate, dueAt, status: 'active'|'snoozed'|'done', snoozedUntil }] — written by countdown.html, read here
-        achievementBonusPoints: 0,
+    notesData: { folders: [], items: [], migrated: false } // new folder-based notes system — see Part B
+     achievementBonusPoints: 0,
     achievementBonusAwarded: false,
     whyIIT: ''
   };
@@ -1065,6 +1066,8 @@ let stateLoadedSuccessfully = false;
     if (!state.settings.permanentTasks) state.settings.permanentTasks = [];
     if (!state.settings.theme) state.settings.theme = 'dark';
     if (typeof state.settings.excludePermanentFromCarryForward !== 'boolean') state.settings.excludePermanentFromCarryForward = true;
+    if (!state.settings.academicYear) state.settings.academicYear = '12th';
+    if (!state.settings.syllabusTargetDate) state.settings.syllabusTargetDate = todayKey(nextOccurrence(9, 1));
   }
 
   function applyTheme(){
@@ -2255,10 +2258,17 @@ async function saveState(){
   }
 
   // ================= COUNTDOWNS =================
-  function renderCountdowns(){
-    document.getElementById('cdSyllabus').textContent = Math.max(0, daysUntil(nextOccurrence(9, 1)));
-    document.getElementById('cdCet').textContent = Math.max(0, daysUntil(nextOccurrence(11, 15)));
-    document.getElementById('cdJee').textContent = Math.max(0, daysUntil(nextOccurrence(0, 15)));
+   function renderCountdowns(){
+    const yearOffset = (state.settings && state.settings.academicYear === '11th') ? 1 : 0;
+    const shifted = (d) => { const nd = new Date(d); nd.setFullYear(nd.getFullYear() + yearOffset); return nd; };
+
+    const syllabusDate = (state.settings && state.settings.syllabusTargetDate)
+      ? keyToDate(state.settings.syllabusTargetDate)
+      : nextOccurrence(9, 1);
+
+    document.getElementById('cdSyllabus').textContent = Math.max(0, daysUntil(syllabusDate));
+    document.getElementById('cdCet').textContent = Math.max(0, daysUntil(shifted(nextOccurrence(11, 15))));
+    document.getElementById('cdJee').textContent = Math.max(0, daysUntil(shifted(nextOccurrence(0, 15))));
   }
 
   // ================= GOAL / TRACK =================
