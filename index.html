@@ -632,7 +632,11 @@
         <div class="stat-row"><div class="label"><span>Chemistry</span><span id="chemCountLbl">0 / 33</span></div><div class="bar chem"><i id="chemBar" style="width:0%"></i></div></div>
         <div class="stat-row"><div class="label"><span>Maths</span><span id="mathsCountLbl">0 / 33</span></div><div class="bar maths"><i id="mathsBar" style="width:0%"></i></div></div>
         <div class="stat-row"><div class="label"><span>Mock tests this week</span><span id="mockCountLbl">0 / 4</span></div><div class="bar mock"><i id="mockBar" style="width:0%"></i></div></div>
-
+<div class="panel" style="margin-top:18px;">
+      <h2>📜 Notes <span class="sub">— pinned &amp; recent</span></h2>
+      <div id="homeNotesList"></div>
+      <p class="empty-note" id="emptyHomeNotes">No notes yet.</p>
+    </div>
         <div style="margin-top:16px; padding-top:14px; border-top:1px dashed var(--panel-border);">
           <label for="whyIITInput">Why IIT? <span style="color:var(--text-muted); font-weight:400;">(permanent — never disappears)</span></label>
           <textarea id="whyIITInput" rows="3" placeholder="Write why you're doing this. Read it back when it gets hard." style="width:100%; background:var(--bg); border:1px solid var(--panel-border); color:var(--text); border-radius:8px; padding:10px; font-size:13px; font-family:inherit; resize:vertical;"></textarea>
@@ -769,20 +773,34 @@
     </div>
   </section>
 
-  <!-- ===================== NOTES TAB ===================== -->
+  
+    <!-- ===================== NOTES TAB ===================== -->
   <section class="tabpanel" id="tab-notes">
-    <div class="grid2">
-      <div class="panel">
-        <h2>Write a note</h2>
-        <textarea id="noteTextInput" rows="5" placeholder="Anything you want to remember — a formula, a mistake to avoid, a thought..."></textarea>
-        <button type="button" class="primary" id="saveNoteBtn" style="margin-top:10px;">Save note</button>
+    <div class="panel" style="margin-bottom:18px;">
+      <h2>Add a note</h2>
+      <textarea id="noteTextInput" rows="4" placeholder="Anything you want to remember — a formula, a mistake to avoid, a thought..."></textarea>
+      <div class="row2" style="margin-top:10px;">
+        <select id="noteFolderSelect"></select>
+        <button type="button" class="primary" id="saveNoteBtn">Save note</button>
       </div>
-      <div class="panel">
-        <h2>Today's notes <span class="sub" id="notesTodayLabel"></span></h2>
-        <ul class="plain" id="notesTodayList"></ul>
-        <p class="empty-note" id="emptyNotesNote">No notes yet today.</p>
-        <button type="button" class="ctrlbtn" id="viewNotesHistoryBtn" style="margin-top:10px;">📜 View History</button>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;">
+        <button type="button" class="ctrlbtn" id="notesBackBtn" style="display:none;">← Back</button>
+        <h2 id="notesBreadcrumb" style="margin:0;">All Notes</h2>
+        <input type="text" id="notesSearchInput" placeholder="Search notes..." style="flex:1; min-width:140px; background:var(--bg); border:1px solid var(--panel-border); color:var(--text); border-radius:8px; padding:8px 10px; font-size:13px; font-family:inherit;">
+        <select id="notesSortSelect" style="width:auto; margin:0;">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+        <button type="button" class="ctrlbtn" id="newFolderBtn">📁 New Folder</button>
       </div>
+
+      <div id="notesFoldersGrid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap:10px; margin-bottom:16px;"></div>
+
+      <ul class="plain" id="notesList"></ul>
+      <p class="empty-note" id="emptyNotesMsg" style="display:none;">No notes here yet.</p>
     </div>
   </section>
 
@@ -827,15 +845,17 @@
 </div>
 
   
-<div class="modal-overlay hidden" id="notesHistoryModal">
-  <div class="modal" style="max-width:520px;">
-    <h3>Notes history</h3>
-    <p>Every note you've saved, most recent day first.</p>
-    <div id="notesHistoryContent" style="max-height:400px; overflow-y:auto;"></div>
-    <button class="primary" id="notesHistoryModalClose" style="margin-top:14px;">Close</button>
+<div class="modal-overlay hidden" id="textPromptModal">
+  <div class="modal">
+    <h3 id="textPromptTitle">Input</h3>
+    <textarea id="textPromptInput" rows="3" style="width:100%; background:var(--bg); border:1px solid var(--panel-border); color:var(--text); border-radius:8px; padding:10px; font-family:inherit; font-size:14px; resize:vertical; margin-bottom:14px;"></textarea>
+    <div style="display:flex; gap:8px;">
+      <button class="primary" id="textPromptSave">Save</button>
+      <button class="primary" id="textPromptCancel" style="background:var(--panel-border); color:var(--text);">Cancel</button>
+    </div>
   </div>
 </div>
-
+  
   <div class="modal-overlay hidden" id="historyModal">
   <div class="modal" style="max-width:520px;">
     <h3>Completed task history</h3>
@@ -1428,12 +1448,8 @@ async function saveState(){
     document.getElementById('historyModal').classList.add('hidden');
   });
 
-  // ================= NOTES TAB =================
-
-
-  // ================= NOTES TAB =================
    // ================= NOTES TAB =================
-    function escapeHtml(str){
+  function escapeHtml(str){
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
@@ -1570,7 +1586,15 @@ async function saveState(){
       historyList.appendChild(item);
     });
   }
+  document.getElementById('notesShortcutBtn').addEventListener('click', () => {
+    document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
+    document.querySelector('.tabbtn[data-tab="notes"]').classList.add('active');
+    document.getElementById('tab-notes').classList.add('active');
+    renderNotesApp();
+  });
 
+  document.getElementById('notifBellBtn').addEventListener('click', () => {
   document.getElementById('notifBellBtn').addEventListener('click', () => {
     document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
@@ -1579,81 +1603,266 @@ async function saveState(){
     renderNotificationsTab();
   });
 
-  function renderNotesToday(){
-    const day = getDay(todayKey());
-    const list = document.getElementById('notesTodayList');
-    const emptyNote = document.getElementById('emptyNotesNote');
-    document.getElementById('notesTodayLabel').textContent = '— ' + new Date().toDateString();
-    list.innerHTML = '';
-    if (day.notes.length === 0) { emptyNote.style.display = 'block'; return; }
-    emptyNote.style.display = 'none';
-    [...day.notes].reverse().forEach(n => {
-      const li = document.createElement('li');
-      li.className = 'task-item';
-      li.style.alignItems = 'flex-start';
-      const text = document.createElement('span');
-      text.className = 'task-label';
-      text.style.whiteSpace = 'pre-wrap';
-      text.textContent = n.text;
-      const time = document.createElement('span');
-      time.className = 'task-pts';
-      time.style.color = 'var(--text-muted)';
-      time.textContent = new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const del = document.createElement('button');
-      del.className = 'task-del'; del.type = 'button'; del.textContent = '✕'; del.setAttribute('aria-label','Delete note');
-      del.addEventListener('click', async () => {
-        day.notes = day.notes.filter(x => x.id !== n.id);
-        await saveState();
-        renderNotesToday();
-      });
-      li.appendChild(text); li.appendChild(time); li.appendChild(del);
-      list.appendChild(li);
+    function ensureNotesData(){
+    if (!state.notesData) state.notesData = { folders: [], items: [], migrated: false };
+    if (!state.notesData.folders) state.notesData.folders = [];
+    if (!state.notesData.items) state.notesData.items = [];
+    if (state.notesData.migrated === undefined) state.notesData.migrated = false;
+  }
+
+  function migrateOldNotesIfNeeded(){
+    ensureNotesData();
+    if (state.notesData.migrated) return;
+    Object.keys(state.days).forEach(key => {
+      const day = state.days[key];
+      if (day.notes && day.notes.length) {
+        day.notes.forEach(n => {
+          state.notesData.items.push({
+            id: n.id || ('note_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
+            text: n.text,
+            timestamp: n.timestamp || new Date().toISOString(),
+            folderId: null,
+            pinned: false
+          });
+        });
+      }
     });
+    state.notesData.migrated = true;
+  }
+
+  let currentNotesFolder = null; // null = root view (folders + unfiled notes)
+  let notesSort = 'newest';
+  let notesSearchQuery = '';
+  let textPromptCallback = null;
+
+  function openTextPrompt(title, initialValue, onSave){
+    document.getElementById('textPromptTitle').textContent = title;
+    document.getElementById('textPromptInput').value = initialValue || '';
+    textPromptCallback = onSave;
+    document.getElementById('textPromptModal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('textPromptInput').focus(), 50);
+  }
+  document.getElementById('textPromptCancel').addEventListener('click', () => {
+    document.getElementById('textPromptModal').classList.add('hidden');
+    textPromptCallback = null;
+  });
+  document.getElementById('textPromptSave').addEventListener('click', async () => {
+    const val = document.getElementById('textPromptInput').value.trim();
+    const cb = textPromptCallback;
+    document.getElementById('textPromptModal').classList.add('hidden');
+    textPromptCallback = null;
+    if (val && cb) await cb(val);
+  });
+
+  function populateNoteFolderSelect(){
+    const sel = document.getElementById('noteFolderSelect');
+    const opts = ['<option value="">Unfiled</option>'].concat(
+      state.notesData.folders.map(f => '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>')
+    );
+    sel.innerHTML = opts.join('');
+    if (currentNotesFolder) sel.value = currentNotesFolder;
   }
 
   document.getElementById('saveNoteBtn').addEventListener('click', async () => {
     const input = document.getElementById('noteTextInput');
     const text = input.value.trim();
     if (!text) return;
-    const day = getDay(todayKey());
-    day.notes.push({
+    ensureNotesData();
+    const folderId = document.getElementById('noteFolderSelect').value || null;
+    state.notesData.items.push({
       id: 'note_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-      text,
-      timestamp: new Date().toISOString()
+      text, timestamp: new Date().toISOString(), folderId, pinned: false
     });
     input.value = '';
     await saveState();
-    renderNotesToday();
+    renderNotesApp();
   });
 
-  function renderNotesHistory(){
-    const content = document.getElementById('notesHistoryContent');
-    const dateKeys = Object.keys(state.days).sort((a,b) => (a < b ? 1 : -1));
-    let html = '';
-    dateKeys.forEach(key => {
-      const notes = state.days[key].notes || [];
-      if (notes.length === 0) return;
-      html += '<div style="margin-bottom:16px;">';
-      html += '<div style="font-size:12.5px; color:var(--text-muted); font-weight:600; margin-bottom:6px;">' + key + '</div>';
-      [...notes].reverse().forEach(n => {
-        const time = new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        html += '<div class="task-item" style="margin-bottom:6px; align-items:flex-start;">';
-        html += '<span class="task-label" style="white-space:pre-wrap;">' + escapeHtml(n.text) + '</span>';
-        html += '<span class="task-pts" style="color:var(--text-muted);">' + time + '</span>';
-        html += '</div>';
-      });
-      html += '</div>';
+  document.getElementById('newFolderBtn').addEventListener('click', () => {
+    openTextPrompt('New folder name', '', async (name) => {
+      ensureNotesData();
+      state.notesData.folders.push({ id: 'folder_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), name });
+      await saveState();
+      renderNotesApp();
     });
-    content.innerHTML = html || '<p class="empty-note">No notes saved yet.</p>';
+  });
+
+  document.getElementById('notesBackBtn').addEventListener('click', () => {
+    currentNotesFolder = null;
+    renderNotesApp();
+  });
+
+  document.getElementById('notesSearchInput').addEventListener('input', (e) => {
+    notesSearchQuery = e.target.value.trim().toLowerCase();
+    renderNotesApp();
+  });
+
+  document.getElementById('notesSortSelect').addEventListener('change', (e) => {
+    notesSort = e.target.value;
+    renderNotesApp();
+  });
+
+  function openNotesFolder(folderId){
+    currentNotesFolder = folderId;
+    renderNotesApp();
   }
 
-  document.getElementById('viewNotesHistoryBtn').addEventListener('click', () => {
-    renderNotesHistory();
-    document.getElementById('notesHistoryModal').classList.remove('hidden');
-  });
-  document.getElementById('notesHistoryModalClose').addEventListener('click', () => {
-    document.getElementById('notesHistoryModal').classList.add('hidden');
-  });
+  function renderHomeNotesWidget(){
+    ensureNotesData();
+    const wrap = document.getElementById('homeNotesList');
+    const empty = document.getElementById('emptyHomeNotes');
+    if (!wrap) return;
+    const items = [...state.notesData.items].sort((a,b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return new Date(b.timestamp) - new Date(a.timestamp);
+    }).slice(0, 5);
+    empty.style.display = items.length ? 'none' : 'block';
+    wrap.innerHTML = '';
+    items.forEach(n => {
+      const row = document.createElement('div');
+      row.className = 'task-item';
+      row.style.cursor = 'pointer';
+      row.innerHTML = '<span class="task-label" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + (n.pinned ? '📌 ' : '') + escapeHtml(n.text) + '</span>';
+      row.addEventListener('click', () => {
+        currentNotesFolder = n.folderId;
+        document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
+        document.querySelector('.tabbtn[data-tab="notes"]').classList.add('active');
+        document.getElementById('tab-notes').classList.add('active');
+        renderNotesApp();
+      });
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderNotesApp(){
+    migrateOldNotesIfNeeded();
+    ensureNotesData();
+    populateNoteFolderSelect();
+
+    const backBtn = document.getElementById('notesBackBtn');
+    const breadcrumb = document.getElementById('notesBreadcrumb');
+    const foldersGrid = document.getElementById('notesFoldersGrid');
+    const list = document.getElementById('notesList');
+    const emptyMsg = document.getElementById('emptyNotesMsg');
+
+    foldersGrid.innerHTML = '';
+    list.innerHTML = '';
+
+    if (currentNotesFolder) {
+      const folder = state.notesData.folders.find(f => f.id === currentNotesFolder);
+      backBtn.style.display = 'inline-block';
+      breadcrumb.textContent = folder ? ('📁 ' + folder.name) : 'All Notes';
+      foldersGrid.style.display = 'none';
+      if (!folder) currentNotesFolder = null;
+    } else {
+      backBtn.style.display = 'none';
+      breadcrumb.textContent = 'All Notes';
+      foldersGrid.style.display = 'grid';
+
+      state.notesData.folders.forEach(f => {
+        const count = state.notesData.items.filter(n => n.folderId === f.id).length;
+        const card = document.createElement('div');
+        card.style.cssText = 'background:var(--bg-soft); border:1px solid var(--panel-border); border-radius:10px; padding:12px; cursor:pointer;';
+        card.innerHTML =
+          '<div style="font-weight:600; font-size:13.5px; margin-bottom:4px;">📁 ' + escapeHtml(f.name) + '</div>' +
+          '<div style="font-size:11.5px; color:var(--text-muted);">' + count + ' note' + (count === 1 ? '' : 's') + '</div>' +
+          '<div style="display:flex; gap:6px; margin-top:8px;">' +
+            '<button type="button" class="ctrlbtn" data-action="rename" style="padding:4px 8px; font-size:11px;">✏️</button>' +
+            '<button type="button" class="ctrlbtn" data-action="delete" style="padding:4px 8px; font-size:11px;">🗑️</button>' +
+          '</div>';
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          openNotesFolder(f.id);
+        });
+        card.querySelector('[data-action="rename"]').addEventListener('click', (e) => {
+          e.stopPropagation();
+          openTextPrompt('Rename folder', f.name, async (name) => {
+            f.name = name;
+            await saveState();
+            renderNotesApp();
+          });
+        });
+        card.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const ok = confirm('Delete folder "' + f.name + '"? Notes inside move to Unfiled, not deleted.');
+          if (!ok) return;
+          state.notesData.items.forEach(n => { if (n.folderId === f.id) n.folderId = null; });
+          state.notesData.folders = state.notesData.folders.filter(x => x.id !== f.id);
+          await saveState();
+          renderNotesApp();
+        });
+        foldersGrid.appendChild(card);
+      });
+    }
+
+    let visible = state.notesData.items.filter(n => n.folderId === currentNotesFolder);
+    if (notesSearchQuery) visible = visible.filter(n => n.text.toLowerCase().includes(notesSearchQuery));
+    visible.sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      const diff = new Date(b.timestamp) - new Date(a.timestamp);
+      return notesSort === 'oldest' ? -diff : diff;
+    });
+
+    emptyMsg.style.display = visible.length ? 'none' : 'block';
+
+    visible.forEach(n => {
+      const li = document.createElement('li');
+      li.className = 'task-item';
+      li.style.alignItems = 'flex-start';
+      li.style.flexWrap = 'wrap';
+
+      const pinBtn = document.createElement('button');
+      pinBtn.type = 'button';
+      pinBtn.className = 'ctrlbtn';
+      pinBtn.style.cssText = 'padding:4px 8px; font-size:12px;' + (n.pinned ? ' background:var(--gold); color:#1A1408;' : '');
+      pinBtn.textContent = n.pinned ? '📌' : '📍';
+      pinBtn.title = n.pinned ? 'Unpin' : 'Pin';
+      pinBtn.addEventListener('click', async () => { n.pinned = !n.pinned; await saveState(); renderNotesApp(); });
+
+      const text = document.createElement('span');
+      text.className = 'task-label';
+      text.style.whiteSpace = 'pre-wrap';
+      text.style.cursor = 'pointer';
+      text.textContent = n.text;
+      text.title = 'Click to edit';
+      text.addEventListener('click', () => {
+        openTextPrompt('Edit note', n.text, async (val) => {
+          n.text = val;
+          await saveState();
+          renderNotesApp();
+        });
+      });
+
+      const time = document.createElement('span');
+      time.className = 'task-pts';
+      time.style.color = 'var(--text-muted)';
+      time.textContent = new Date(n.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+      const moveSel = document.createElement('select');
+      moveSel.style.cssText = 'width:auto; margin:0; padding:5px 6px; font-size:11.5px;';
+      moveSel.innerHTML = '<option value="">Unfiled</option>' + state.notesData.folders.map(f => '<option value="' + f.id + '">' + escapeHtml(f.name) + '</option>').join('');
+      moveSel.value = n.folderId || '';
+      moveSel.addEventListener('change', async () => {
+        n.folderId = moveSel.value || null;
+        await saveState();
+        renderNotesApp();
+      });
+
+      const del = document.createElement('button');
+      del.className = 'task-del'; del.type = 'button'; del.textContent = '✕'; del.setAttribute('aria-label','Delete note');
+      del.addEventListener('click', async () => {
+        state.notesData.items = state.notesData.items.filter(x => x.id !== n.id);
+        await saveState();
+        renderNotesApp();
+      });
+
+      li.appendChild(pinBtn); li.appendChild(text); li.appendChild(time); li.appendChild(moveSel); li.appendChild(del);
+      list.appendChild(li);
+    });
+
+    renderHomeNotesWidget();
+  }
 
   // ================= MOCK TESTS TAB =================
   const mockDateInput = document.getElementById('mockDate');
@@ -2373,7 +2582,7 @@ async function saveState(){
 
           goalInput.value = state.goalPoints;
     renderMotivation();
-    renderNotesToday();
+    renderNotesApp();
     renderNotificationsTab();
     renderBell();
     renderWhyIIT();
