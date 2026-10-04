@@ -824,7 +824,7 @@
     </div>
   </section>
 
-  <footer class="foot">Progress is saved automatically on this device.</footer>
+  <footer class="foot">Progress is saved automatically to your account.</footer>
 </div>
 
 <div class="modal-overlay hidden" id="planModal">
@@ -879,23 +879,22 @@ const supabaseClient = window.supabase.createClient(
   SUPABASE_KEY
 );
 
-     supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+  setTimeout(async () => {
+    const userEmail = document.getElementById('userEmail');
+    const screen = document.getElementById('authScreen');
 
-  const userEmail = document.getElementById('userEmail');
-
-  if (session) {
-    window.ascentCurrentUser = session.user; // hand the already-confirmed user straight through, no re-fetching
-    authScreen.style.display = 'none';
-    if (userEmail && session.user) {
-      userEmail.textContent = session.user.email;
+    if (session) {
+      window.ascentCurrentUser = session.user;
+      screen.style.display = 'none';
+      if (userEmail && session.user) userEmail.textContent = session.user.email;
+      if (window.ascentRunFullInit) await window.ascentRunFullInit();
+    } else {
+      window.ascentCurrentUser = null;
+      screen.style.display = 'flex';
+      if (window.ascentResetInit) window.ascentResetInit();
     }
-    if (window.ascentRunFullInit) await window.ascentRunFullInit();
-  } else {
-    window.ascentCurrentUser = null;
-    authScreen.style.display = 'flex';
-    if (window.ascentResetInit) window.ascentResetInit();
-  }
-
+  }, 0);
 });
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
@@ -1132,15 +1131,13 @@ async function loadState(){
       console.error('Could not load cloud progress:', error);
       return;
     }
-
-   if (data && data.progress) {
-  state = Object.assign(state, data.progress);
-  stateLoadedSuccessfully = true;
-  console.log('Cloud progress loaded.');
-}
-   else {
+    if (data && data.progress) {
+      state = Object.assign(state, data.progress);
+      console.log('Cloud progress loaded.');
+    } else {
       console.log('No cloud progress yet. Starting fresh.');
     }
+    stateLoadedSuccessfully = true;
 
   } catch(e) {
     console.error('Could not load progress:', e);
@@ -1586,22 +1583,15 @@ async function saveState(){
       historyList.appendChild(item);
     });
   }
-  document.getElementById('notesShortcutBtn').addEventListener('click', () => {
-    document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
-    document.querySelector('.tabbtn[data-tab="notes"]').classList.add('active');
-    document.getElementById('tab-notes').classList.add('active');
-    renderNotesApp();
-  });
 
-  document.getElementById('notifBellBtn').addEventListener('click', () => {
-  document.getElementById('notifBellBtn').addEventListener('click', () => {
-    document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
-    document.querySelector('.tabbtn[data-tab="notifications"]').classList.add('active');
-    document.getElementById('tab-notifications').classList.add('active');
-    renderNotificationsTab();
-  });
+
+ document.getElementById('notifBellBtn').addEventListener('click', () => {
+  document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
+  document.querySelector('.tabbtn[data-tab="notifications"]').classList.add('active');
+  document.getElementById('tab-notifications').classList.add('active');
+  renderNotificationsTab();
+});
 
     function ensureNotesData(){
     if (!state.notesData) state.notesData = { folders: [], items: [], migrated: false };
@@ -2609,8 +2599,18 @@ async function saveState(){
     maybeShowWeeklyModal();
   };
 
-  window.ascentResetInit = function(){
-    ascentInitialized = false; // lets a genuine fresh login re-load everything after logout
+    window.ascentResetInit = function(){
+    ascentInitialized = false;
+    stateLoadedSuccessfully = false;
+    state = {
+      goalPoints: 99000, totalPoints: 0, longestStreak: 0,
+      lastWeeklyPopupDate: null, lastCarryForwardDate: null,
+      days: {}, chapters: {},
+      settings: { theme: 'dark', permanentTasks: [], excludePermanentFromCarryForward: true },
+      reminders: [],
+      notesData: { folders: [], items: [], migrated: false },
+      achievementBonusPoints: 0, achievementBonusAwarded: false, whyIIT: ''
+    };
   };
 })();
 console.log("Supabase connected:", !!supabaseClient);
